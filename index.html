@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ark Play — Movies. TV Shows. Extraordinary Stories.</title>
+<link rel="icon" href="assets/logo_mark_icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&family=Great+Vibes&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=Josefin+Sans:wght@400;600&family=Libre+Baskerville&family=Lora:wght@400;600&family=Manrope:wght@400;500;600;700;800&family=Marcellus&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Noto+Sans:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;600&family=Outfit:wght@400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Poppins:wght@400;600;700&family=Quicksand:wght@400;600&family=Raleway:wght@400;600&family=Roboto:wght@400;500;700&family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="api-key-gate" class="gate hidden">
+  <div class="gate-card">
+    <img src="assets/logo_mark_icon.png" class="gate-logo" alt="Ark Play">
+    <h1>Ark Play</h1>
+    <p class="gate-tagline">Movies. TV Shows. Extraordinary Stories.</p>
+    <p class="gate-copy">Ark Play is a fan-made web tribute to the <strong>ARK Theater</strong> Android app.
+      It browses real movie &amp; TV metadata via
+      <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>.
+      Paste a free TMDB API key (v3 auth) to continue — it's stored only in your browser.</p>
+    <input id="api-key-input" type="text" placeholder="TMDB API Key (v3)" autocomplete="off" spellcheck="false">
+    <button id="api-key-submit">Enter Ark Play</button>
+    <a class="gate-link" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Get a free API key &rarr;</a>
+  </div>
+</div>
+
+<header id="app-header" class="app-header hidden">
+  <div class="header-inner">
+    <a href="#/home" class="brand">
+      <img src="assets/logo_mark_icon.png" alt="">
+      <span class="brand-word">Ark <em>Play</em></span>
+    </a>
+    <nav class="main-nav">
+      <a href="#/home" data-route="home">Home</a>
+      <a href="#/movies" data-route="movies">Movies</a>
+      <a href="#/tv" data-route="tv">TV Shows</a>
+      <a href="#/platforms" data-route="platforms">Platforms</a>
+      <a href="#/credits" data-route="credits">Credits</a>
+      <a href="#/watchlist" data-route="watchlist">Watchlist</a>
+    </nav>
+    <div class="header-actions">
+      <button id="search-toggle" class="icon-btn" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 5.293 14.293l5.207 5.207 1.414-1.414-5.207-5.207A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+      </button>
+      <a href="#/settings" class="icon-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 4a7.97 7.97 0 0 0-.14-1.49l2.11-1.65-2-3.46-2.49 1a8.07 8.07 0 0 0-1.3-.75L16.5 3h-4l-.62 2.65c-.46.2-.9.45-1.3.75l-2.49-1-2 3.46 2.11 1.65A7.97 7.97 0 0 0 7 12c0 .5.05 1 .14 1.49l-2.11 1.65 2 3.46 2.49-1c.4.3.84.55 1.3.75L11.5 21h4l.62-2.65c.46-.2.9-.45 1.3-.75l2.49 1 2-3.46-2.11-1.65c.09-.49.14-.99.14-1.49z"/></svg>
+      </a>
+    </div>
+  </div>
+  <div id="search-bar" class="search-bar hidden">
+    <input id="search-input" type="text" placeholder="Search movies, TV shows, people…" autocomplete="off">
+    <div id="search-suggestions" class="search-suggestions"></div>
+  </div>
+</header>
+
+<main id="app-root" class="app-root hidden"></main>
+
+<nav id="bottom-nav" class="bottom-nav hidden">
+  <a href="#/home" data-route="home">
+    <svg viewBox="0 0 24 24"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+    <span>Home</span>
+  </a>
+  <a href="#/movies" data-route="movies">
+    <svg viewBox="0 0 24 24"><path d="M4 4h2l1.5 4H9L7.5 4h2L11 8h1.5L11 4h2l1.5 4H16L14.5 4H17a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+    <span>Movies</span>
+  </a>
+  <a href="#/tv" data-route="tv">
+    <svg viewBox="0 0 24 24"><path d="M21 3H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5l-2 3v1h12v-1l-2-3h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 12H3V5h18z"/></svg>
+    <span>TV Shows</span>
+  </a>
+  <button id="bottom-search-toggle" data-route="">
+    <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 5.293 14.293l5.207 5.207 1.414-1.414-5.207-5.207A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+    <span>Search</span>
+  </button>
+  <a href="#/watchlist" data-route="watchlist">
+    <svg viewBox="0 0 24 24"><path d="M6 2h12a1 1 0 0 1 1 1v18l-7-4.5L5 21V3a1 1 0 0 1 1-1z"/></svg>
+    <span>Watchlist</span>
+  </a>
+</nav>
+
+<footer class="app-footer">
+  <p>Unofficial fan tribute UI. Metadata &amp; images courtesy of
+    <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>.
+    This site does not host, stream, or link to any video content.</p>
+</footer>
+
+<div id="trailer-modal" class="trailer-modal hidden">
+  <div class="trailer-modal-inner">
+    <button id="trailer-close" class="icon-btn trailer-close" aria-label="Close">&times;</button>
+    <div id="trailer-frame-wrap"></div>
+  </div>
+</div>
+
+<script src="js/tmdb.js"></script>
+<script src="js/fonts.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/watchlist.js"></script>
+<script src="js/sharedwatchlist.js"></script>
+<script src="js/recentlywatched.js"></script>
+<script src="js/platforms.js"></script>
+<script src="js/player-sources.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
