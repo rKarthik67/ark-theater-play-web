@@ -519,16 +519,37 @@ async function renderPlayer(mediaType, id) {
         <section class="player-providers"><h3>Where to watch</h3><p>Availability is based on your region and provided by TMDB/JustWatch.</p><div class="player-provider-list"></div></section>
       </div>`);
     player.querySelector('#player-back').addEventListener('click', () => { location.hash = `#/detail/${mediaType}/${id}`; });
-    const frame = player.querySelector('#player-frame'); let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1;
+    const frame = player.querySelector('#player-frame'); let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1; let animeAnilistId = null;
+    const refreshFrame = () => {
+      frame.src = selectedSource === 'vidsync-anime' && animeAnilistId
+        ? PlayerSources.anime(animeAnilistId, episode)
+        : PlayerSources.url(selectedSource, mediaType, id, season, episode);
+    };
     const sourceList = player.querySelector('#player-source-list');
     PlayerSources.list.forEach((source, index) => {
       const button = el(`<button class="chip ${index === 0 ? 'active' : ''}">${escapeHtml(source.label)}</button>`);
       button.addEventListener('click', () => {
-        selectedSource = source.id; frame.src = PlayerSources.url(selectedSource, mediaType, id, season, episode);
+        selectedSource = source.id; refreshFrame();
         sourceList.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button));
       });
       sourceList.appendChild(button);
     });
+    /* Anime titles use the documented VidSync AniList route rather than a
+       TMDB movie/TV route. The mapping stays asynchronous so normal titles
+       remain fast and unaffected. */
+    if (isAnimeDetails(d)) {
+      AnimeIds.lookup(mediaType, d.id).then(ids => {
+        if (!ids?.anilistId) return;
+        animeAnilistId = ids.anilistId;
+        const animeButton = el(`<button class="chip">VidSync Anime</button>`);
+        animeButton.addEventListener('click', () => {
+          selectedSource = 'vidsync-anime'; refreshFrame();
+          sourceList.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === animeButton));
+        });
+        sourceList.prepend(animeButton);
+        animeButton.click();
+      }).catch(() => { /* Fall back to the selected TMDB source when unmapped. */ });
+    }
     if (mediaType === 'tv') {
       const seasonSelect = player.querySelector('#player-season'); const episodeSelect = player.querySelector('#player-episode');
       const rail = player.querySelector('.episode-rail');
@@ -567,7 +588,7 @@ async function renderPlayer(mediaType, id) {
         const list = player.querySelector('#player-episodes'); list.innerHTML = '';
         episodes.forEach(item => {
           const row = el(`<button class="episode-row ${item.episode_number === episode ? 'active' : ''}">${item.still_path ? `<img src="${TMDB.backdrop(item.still_path, 'w342')}" alt="">` : '<div class="episode-still-placeholder">No image</div>'}<span class="episode-row-copy"><b>${item.episode_number}. ${escapeHtml(item.name || `Episode ${item.episode_number}`)}</b><small>${item.runtime ? `${item.runtime} min` : item.air_date || ''}</small><em>${escapeHtml(item.overview || '')}</em></span></button>`);
-          row.addEventListener('click', () => { episode = item.episode_number; episodeSelect.value = String(episode); frame.src = PlayerSources.url(selectedSource, mediaType, id, season, episode); drawEpisodes(episodes); });
+          row.addEventListener('click', () => { episode = item.episode_number; episodeSelect.value = String(episode); refreshFrame(); drawEpisodes(episodes); });
           list.appendChild(row);
         });
       }
@@ -575,10 +596,10 @@ async function renderPlayer(mediaType, id) {
         season = Number(seasonSelect.value) || 1; episode = 1; episodeSelect.innerHTML = '<option>Loading…</option>'; episodeSelect.disabled = true;
         try { const data = await TMDB.season(id, season); const episodes = data.episodes || []; episodeSelect.innerHTML = ''; episodes.forEach(e => episodeSelect.appendChild(el(`<option value="${e.episode_number}">${e.episode_number}. ${escapeHtml(e.name || `Episode ${e.episode_number}`)}</option>`))); drawEpisodes(episodes); }
         catch { episodeSelect.innerHTML = '<option value="1">Episode 1</option>'; player.querySelector('#player-episodes').innerHTML = '<div class="player-empty">Episodes unavailable.</div>'; }
-        episodeSelect.disabled = false; frame.src = PlayerSources.url(selectedSource, mediaType, id, season, episode);
+        episodeSelect.disabled = false; refreshFrame();
       }
       seasonSelect.addEventListener('change', loadEpisodes);
-      episodeSelect.addEventListener('change', () => { episode = Number(episodeSelect.value) || 1; frame.src = PlayerSources.url(selectedSource, mediaType, id, season, episode); loadEpisodesForSelection(); });
+      episodeSelect.addEventListener('change', () => { episode = Number(episodeSelect.value) || 1; refreshFrame(); loadEpisodesForSelection(); });
       function loadEpisodesForSelection() { player.querySelectorAll('.episode-row').forEach(row => row.classList.toggle('active', row.textContent.trim().startsWith(`${episode}.`))); }
       if (seasons.length) loadEpisodes();
     }
