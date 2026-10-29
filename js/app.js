@@ -3,7 +3,7 @@
 const root = document.getElementById('app-root');
 
 function setActiveNav(route) {
-  document.querySelectorAll('.main-nav a, .bottom-nav a').forEach(a => {
+  document.querySelectorAll('.main-nav a, .bottom-nav a, .bottom-more-menu a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === route);
   });
 }
@@ -320,6 +320,30 @@ function setupSearchUi() {
   });
 }
 
+function setupBottomMoreMenu() {
+  const toggle = document.getElementById('bottom-more-toggle');
+  const menu = document.getElementById('bottom-more-menu');
+  const backdrop = document.getElementById('bottom-more-backdrop');
+
+  function close() {
+    menu.classList.add('hidden');
+    backdrop.classList.add('hidden');
+    toggle.classList.remove('active');
+  }
+  function open() {
+    menu.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    toggle.classList.add('active');
+  }
+
+  toggle.addEventListener('click', () => {
+    menu.classList.contains('hidden') ? open() : close();
+  });
+  backdrop.addEventListener('click', close);
+  menu.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
+  window.addEventListener('hashchange', close);
+}
+
 function saveRecentSearch(q) {
   const KEY = 'ark_recent_searches';
   const list = JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -349,6 +373,7 @@ async function renderDetail(mediaType, id) {
           </div>
           <div class="detail-info">
             <h1 class="detail-title">${escapeHtml(titleOf(d))}</h1>
+            <div class="external-ids" id="detail-external-ids"></div>
             ${d.tagline ? `<p class="detail-tagline">${escapeHtml(d.tagline)}</p>` : ''}
             <div class="detail-meta">
               <span>★ ${(d.vote_average || 0).toFixed(1)}</span>
@@ -375,6 +400,7 @@ async function renderDetail(mediaType, id) {
       </div>
     `);
     root.appendChild(hero);
+    populateExternalIds(hero.querySelector('#detail-external-ids'), mediaType, d);
 
     const wlItem = {
       mediaType, id: d.id, title: titleOf(d), posterPath: d.poster_path,
@@ -412,10 +438,56 @@ async function renderDetail(mediaType, id) {
 }
 
 /* ---------------- Player ---------------- */
+/* TMDB has no native anime-specific id, so AniList/MAL ids are only looked up
+   for titles that are actually anime (Animation genre + Japanese original
+   language — same heuristic used for the Watchlist's Anime tabs). */
+function isAnimeDetails(d) {
+  return (d.genres || []).some(g => g.id === 16) && d.original_language === 'ja';
+}
+
+function populateExternalIds(container, mediaType, d) {
+  if (!container) return;
+  container.appendChild(el(`<span class="id-badge">TMDB ${d.id}</span>`));
+  if (!isAnimeDetails(d)) return;
+  AnimeIds.lookup(mediaType, d.id).then(ids => {
+    if (!ids) return;
+    if (ids.anilistId) container.appendChild(el(`<a class="id-badge" href="https://anilist.co/anime/${ids.anilistId}" target="_blank" rel="noopener">AniList ${ids.anilistId}</a>`));
+    if (ids.malId) container.appendChild(el(`<a class="id-badge" href="https://myanimelist.net/anime/${ids.malId}" target="_blank" rel="noopener">MAL ${ids.malId}</a>`));
+  }).catch(() => { /* mapping unavailable — TMDB id alone still shows */ });
+}
+
 function providerEntry(data) {
   const results = data?.results || {};
   const locale = (navigator.language || 'en-US').split('-')[1];
   return results[locale] || results.IN || results.US || results[Object.keys(results)[0]] || null;
+}
+
+/* TMDB's watch/providers API only returns one generic region "where to watch"
+   page (JustWatch), not a link to each specific service — so every provider
+   button was opening the exact same TMDB page. These are each provider's own
+   site, deep-linked to a search for the title; providers not listed here fall
+   back to the TMDB/JustWatch page. */
+const PROVIDER_SEARCH_LINKS = {
+  8: (q) => `https://www.netflix.com/search?q=${q}`,
+  1796: (q) => `https://www.netflix.com/search?q=${q}`,
+  9: (q) => `https://www.amazon.com/s?k=${q}&i=instant-video`,
+  10: (q) => `https://www.amazon.com/s?k=${q}&i=instant-video`,
+  119: (q) => `https://www.amazon.com/s?k=${q}&i=instant-video`,
+  337: (q) => `https://www.disneyplus.com/search?q=${q}`,
+  2: (q) => `https://tv.apple.com/search?term=${q}`,
+  3: (q) => `https://play.google.com/store/search?q=${q}&c=movies`,
+  15: (q) => `https://www.hulu.com/search?q=${q}`,
+  384: (q) => `https://www.max.com/search?q=${q}`,
+  1899: (q) => `https://www.max.com/search?q=${q}`,
+  531: (q) => `https://www.paramountplus.com/search/?query=${q}`,
+  386: (q) => `https://www.peacocktv.com/search?q=${q}`,
+  192: (q) => `https://www.youtube.com/results?search_query=${q}`,
+  7: (q) => `https://www.vudu.com/content/movies/search?searchString=${q}`,
+  350: (q) => `https://tv.apple.com/search?term=${q}`,
+};
+function providerOpenLink(providerId, title, fallbackLink) {
+  const build = PROVIDER_SEARCH_LINKS[providerId];
+  return build ? build(encodeURIComponent(title)) : fallbackLink;
 }
 
 async function renderPlayer(mediaType, id) {
@@ -436,10 +508,10 @@ async function renderPlayer(mediaType, id) {
             <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
             <span>Back</span>
           </button>
-          <div><div class="player-kicker">Now viewing</div><h1>${escapeHtml(title)}</h1></div>
+          <div><div class="player-kicker">Now viewing</div><h1>${escapeHtml(title)}</h1><div class="external-ids" id="player-external-ids"></div></div>
         </div>
         <div class="player-layout ${mediaType === 'tv' ? 'player-layout-tv' : ''}"><div class="player-stage">
-          <iframe id="player-frame" src="${PlayerSources.url('vidsync', mediaType, id)}" title="${escapeHtml(title)} player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          <iframe id="player-frame" src="${PlayerSources.url('vidsrc-sh', mediaType, id)}" title="${escapeHtml(title)} player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
         </div>
         ${mediaType === 'tv' ? `<aside class="episode-rail"><div class="episode-picker"><label>Season <select id="player-season"></select></label><label>Episode <select id="player-episode"></select></label></div><section class="episode-list-wrap"><h3>Episodes</h3><div class="episode-list" id="player-episodes"></div></section></aside>` : ''}</div>
         <div class="player-servers"><span>Player servers</span><div id="player-source-list"></div></div>
@@ -447,7 +519,7 @@ async function renderPlayer(mediaType, id) {
         <section class="player-providers"><h3>Where to watch</h3><p>Availability is based on your region and provided by TMDB/JustWatch.</p><div class="player-provider-list"></div></section>
       </div>`);
     player.querySelector('#player-back').addEventListener('click', () => { location.hash = `#/detail/${mediaType}/${id}`; });
-    const frame = player.querySelector('#player-frame'); let selectedSource = 'vidsync'; let season = 1; let episode = 1;
+    const frame = player.querySelector('#player-frame'); let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1;
     const sourceList = player.querySelector('#player-source-list');
     PlayerSources.list.forEach((source, index) => {
       const button = el(`<button class="chip ${index === 0 ? 'active' : ''}">${escapeHtml(source.label)}</button>`);
@@ -460,19 +532,28 @@ async function renderPlayer(mediaType, id) {
     if (mediaType === 'tv') {
       const seasonSelect = player.querySelector('#player-season'); const episodeSelect = player.querySelector('#player-episode');
       const rail = player.querySelector('.episode-rail');
-      let dragStartY = 0; let dragStartScroll = 0; let railDragging = false;
+      /* Pointer capture is only taken once real vertical movement is seen —
+         capturing immediately on pointerdown (the previous behavior) could
+         make a plain click's pointerup resolve against the rail instead of
+         the episode-row button underneath, so taps silently did nothing. */
+      let dragStartY = 0; let dragStartScroll = 0; let railDragging = false; let railPointerId = null; let railCaptured = false;
       rail.addEventListener('pointerdown', event => {
         if (event.target.closest('select, option')) return;
-        railDragging = false; dragStartY = event.clientY; dragStartScroll = rail.scrollTop;
-        rail.setPointerCapture(event.pointerId); rail.classList.add('drag-ready');
+        railDragging = false; railCaptured = false;
+        dragStartY = event.clientY; dragStartScroll = rail.scrollTop; railPointerId = event.pointerId;
       });
       rail.addEventListener('pointermove', event => {
-        if (!rail.hasPointerCapture(event.pointerId)) return;
+        if (event.pointerId !== railPointerId) return;
         const distance = event.clientY - dragStartY;
-        if (Math.abs(distance) > 4) { railDragging = true; rail.scrollTop = dragStartScroll - distance; rail.classList.add('dragging'); event.preventDefault(); }
+        if (!railCaptured && Math.abs(distance) > 10) {
+          railCaptured = true; railDragging = true;
+          rail.setPointerCapture(event.pointerId);
+          rail.classList.add('drag-ready', 'dragging');
+        }
+        if (railCaptured) { rail.scrollTop = dragStartScroll - distance; event.preventDefault(); }
       });
       const endRailDrag = event => {
-        if (rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
+        if (railCaptured && rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
         rail.classList.remove('drag-ready', 'dragging');
       };
       rail.addEventListener('pointerup', endRailDrag); rail.addEventListener('pointercancel', endRailDrag);
@@ -505,7 +586,8 @@ async function renderPlayer(mediaType, id) {
     const choices = [['Stream', entry?.flatrate], ['Rent', entry?.rent], ['Buy', entry?.buy]].filter(([, v]) => v?.length);
     if (choices.length) {
       choices.forEach(([kind, services]) => services.forEach(service => {
-        const button = el(`<a class="player-provider" href="${entry.link}" target="_blank" rel="noopener"><img src="${TMDB.providerLogo(service.logo_path)}" alt=""><span><small>${kind}</small>${escapeHtml(service.provider_name)}</span><b>Open</b></a>`);
+        const href = providerOpenLink(service.provider_id, title, entry.link);
+        const button = el(`<a class="player-provider" href="${href}" target="_blank" rel="noopener"><img src="${TMDB.providerLogo(service.logo_path)}" alt=""><span><small>${kind}</small>${escapeHtml(service.provider_name)}</span><b>Open</b></a>`);
         list.appendChild(button);
       }));
     } else if (entry?.link) {
@@ -514,14 +596,18 @@ async function renderPlayer(mediaType, id) {
       list.appendChild(el(`<div class="player-empty">No verified streaming availability is listed for your region.</div>`));
     }
     root.appendChild(player);
+    populateExternalIds(player.querySelector('#player-external-ids'), mediaType, d);
   } catch (err) { clearRoot(); root.appendChild(errorView(err)); }
 }
 
 /* ---------------- Platforms ---------------- */
 async function renderPlatforms() {
   setActiveNav('platforms'); clearRoot();
-  const page = el(`<div class="catalog-page"><div class="page-title-row"><div><h2 class="page-title">Platforms</h2><p class="page-subtitle">Browse streaming services, production houses, and free live channels.</p></div></div><div class="platform-tabs"><button class="chip active" data-tab="providers">OTT Platforms</button><button class="chip" data-tab="studios">Production Houses</button><button class="chip" data-tab="live">Live TV</button></div><div class="platform-grid" id="platform-grid"></div></div>`);
+  const regions = [['IN', 'India'], ['US', 'United States'], ['GB', 'United Kingdom'], ['CA', 'Canada'], ['AU', 'Australia']];
+  let region = localStorage.getItem('ark_watch_region') || 'IN';
+  const page = el(`<div class="catalog-page"><div class="page-title-row"><div><h2 class="page-title">Platforms</h2><p class="page-subtitle">Browse streaming services, production houses, and free live channels.</p></div><label class="region-picker">Streaming region<select id="platform-region">${regions.map(([code, name]) => `<option value="${code}" ${region === code ? 'selected' : ''}>${name}</option>`).join('')}</select></label></div><div class="platform-tabs"><button class="chip active" data-tab="providers">OTT Platforms</button><button class="chip" data-tab="studios">Production Houses</button><button class="chip" data-tab="live">Live TV</button></div><div class="platform-grid" id="platform-grid"></div></div>`);
   root.appendChild(page);
+  page.querySelector('#platform-region').addEventListener('change', event => { region = event.target.value; localStorage.setItem('ark_watch_region', region); });
   let logos = {};
   let studioLogos = {};
   TMDB.providerCatalog().then(data => { logos = Object.fromEntries((data.results || []).map(p => [p.provider_id, p.logo_path])); draw('providers'); }).catch(() => draw('providers'));
@@ -562,13 +648,14 @@ async function renderPlatformResults(kind, id) {
   const item = (kind === 'provider' ? Platforms.providers : Platforms.studios).find(x => String(x.id) === String(id));
   if (!item) { clearRoot(); root.appendChild(emptyState('Platform not found', 'Return to Platforms and choose a service.')); return; }
   let type = 'movie'; let pageNo = 1;
-  const page = el(`<div class="catalog-page"><div class="page-title-row"><div><button class="back-link" id="platform-back">&larr; Platforms</button><h2 class="page-title">${escapeHtml(item.name)}</h2></div><div class="platform-tabs"><button class="chip active" data-type="movie">Movies</button><button class="chip" data-type="tv">TV Shows</button></div></div><div class="media-grid" id="platform-results"></div><div class="load-more-wrap"><button class="btn" id="platform-more">Load more</button></div></div>`);
+  const region = localStorage.getItem('ark_watch_region') || 'IN';
+  const page = el(`<div class="catalog-page"><div class="page-title-row"><div><button class="back-link" id="platform-back">&larr; Platforms</button><h2 class="page-title">${escapeHtml(item.name)}</h2>${kind === 'provider' ? `<p class="page-subtitle">Availability in ${escapeHtml(region)}</p>` : ''}</div><div class="platform-tabs"><button class="chip active" data-type="movie">Movies</button><button class="chip" data-type="tv">TV Shows</button></div></div><div class="media-grid" id="platform-results"></div><div class="load-more-wrap"><button class="btn" id="platform-more">Load more</button></div></div>`);
   clearRoot(); root.appendChild(page);
   page.querySelector('#platform-back').addEventListener('click', () => { location.hash = '#/platforms'; });
   page.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => { type = b.dataset.type; pageNo = 1; page.querySelector('#platform-results').innerHTML = ''; page.querySelectorAll('[data-type]').forEach(x => x.classList.toggle('active', x === b)); load(); }));
   page.querySelector('#platform-more').addEventListener('click', () => { pageNo++; load(); });
   async function load() {
-    const opts = kind === 'provider' ? { with_watch_providers: id, watch_region: 'IN', with_watch_monetization_types: 'flatrate', sort_by: 'popularity.desc', page: pageNo } : { with_companies: id, sort_by: 'popularity.desc', page: pageNo };
+    const opts = kind === 'provider' ? { with_watch_providers: id, watch_region: region, with_watch_monetization_types: 'flatrate', sort_by: 'popularity.desc', page: pageNo } : { with_companies: id, sort_by: 'popularity.desc', page: pageNo };
     try { const data = await TMDB.discover(type, opts); data.results.forEach(x => page.querySelector('#platform-results').appendChild(mediaCard(x, type))); } catch (err) { page.querySelector('#platform-results').appendChild(errorView(err)); }
   }
   load();
@@ -577,13 +664,28 @@ async function renderPlatformResults(kind, id) {
 /* ---------------- Credits ---------------- */
 async function renderCredits() {
   setActiveNav('credits'); clearRoot();
-  const page = el(`<div class="credits-page"><div class="credits-heading"><p>Behind every great story</p><h2 class="page-title">Credits</h2><p>Discover actors, actresses, writers, and directors.</p></div><form class="credits-search"><input placeholder="Search people" aria-label="Search people"><button class="btn btn-gold">Search</button></form><div class="credits-filters"><button class="chip active" data-filter="all">All people</button><button class="chip" data-filter="Acting">Actors</button><button class="chip" data-filter="Writing">Writers</button><button class="chip" data-filter="Directing">Directors</button></div><div class="credits-grid" id="credits-grid"></div><div class="load-more-wrap"><button class="btn" id="credits-more">Show more</button></div></div>`);
+  const page = el(`<div class="credits-page"><div class="credits-heading"><p>Behind every great story</p><h2 class="page-title">Credits</h2><p>Discover actors, actresses, writers, and directors.</p></div><form class="credits-search"><input placeholder="Search people" aria-label="Search people"><button class="btn btn-gold">Search</button></form><div class="credits-filters"><button class="chip active" data-filter="all">All people</button><button class="chip" data-filter="actor">Actors</button><button class="chip" data-filter="actress">Actresses</button><button class="chip" data-filter="Writing">Writers</button><button class="chip" data-filter="Directing">Directors</button></div><div class="credits-grid" id="credits-grid"></div><div class="load-more-wrap"><button class="btn" id="credits-more">Show more</button></div></div>`);
   root.appendChild(page); let people = [], active = 'all', pageNo = 1, includeAdult = false;
   const grid = page.querySelector('#credits-grid');
-  const draw = () => { grid.innerHTML = ''; people.filter(p => active === 'all' || p.known_for_department === active).forEach(p => { const card = el(`<button class="credit-card">${p.profile_path ? `<img src="${TMDB.profile(p.profile_path, 'w342')}" alt="">` : '<div class="credit-placeholder">No photo</div>'}<strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.known_for_department || 'Film & TV')}</span></button>`); card.addEventListener('click', () => { location.hash = `#/person/${p.id}`; }); grid.appendChild(card); }); };
-  async function fetchPeople(query) { const data = query ? await TMDB.searchPeople(query, pageNo, includeAdult) : await TMDB.popularPeople(pageNo, includeAdult); people = pageNo === 1 ? data.results : [...people, ...data.results]; draw(); }
+  const matchesFilter = person => active === 'all'
+    || (active === 'actor' && person.known_for_department === 'Acting' && person.gender === 2)
+    || (active === 'actress' && person.known_for_department === 'Acting' && person.gender === 1)
+    || person.known_for_department === active;
+  const draw = () => { grid.innerHTML = ''; people.filter(matchesFilter).forEach(p => { const card = el(`<button class="credit-card">${p.profile_path ? `<img src="${TMDB.profile(p.profile_path, 'w342')}" alt="">` : '<div class="credit-placeholder">No photo</div>'}<strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.known_for_department || 'Film & TV')}</span></button>`); card.addEventListener('click', () => { location.hash = `#/person/${p.id}`; }); grid.appendChild(card); }); };
+  async function fetchPeople(query) {
+    let results;
+    if (query) {
+      results = (await TMDB.searchPeople(query, pageNo, includeAdult)).results;
+    } else {
+      const randomPages = [...new Set(Array.from({ length: 5 }, () => Math.floor(Math.random() * 500) + 1))];
+      const responses = await Promise.all(randomPages.map(randomPage => TMDB.popularPeople(randomPage, includeAdult)));
+      results = responses.flatMap(response => response.results || []);
+    }
+    people = pageNo === 1 ? results : [...new Map([...people, ...results].map(person => [person.id, person])).values()];
+    draw();
+  }
   page.querySelector('.credits-search').addEventListener('submit', async e => { e.preventDefault(); pageNo = 1; await fetchPeople(e.currentTarget.querySelector('input').value.trim()); });
-  page.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => { active = b.dataset.filter; page.querySelectorAll('[data-filter]').forEach(x => x.classList.toggle('active', x === b)); draw(); }));
+  page.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', async () => { active = b.dataset.filter; page.querySelectorAll('[data-filter]').forEach(x => x.classList.toggle('active', x === b)); if (active === 'all' && !page.querySelector('input').value.trim()) { pageNo = 1; await fetchPeople(''); } else draw(); }));
   async function setAdultResults(enabled) {
     includeAdult = enabled; pageNo = 1;
     await fetchPeople(page.querySelector('input').value.trim());
@@ -595,6 +697,17 @@ async function renderCredits() {
   };
   document.addEventListener('keydown', shortcut);
   registerCleanup(() => document.removeEventListener('keydown', shortcut));
+  let headingTapCount = 0; let headingTapTimer = null;
+  const creditsHeading = page.querySelector('.credits-heading');
+  creditsHeading.addEventListener('pointerup', () => {
+    headingTapCount++;
+    clearTimeout(headingTapTimer);
+    if (headingTapCount === 3) {
+      headingTapCount = 0; setAdultResults(!includeAdult); return;
+    }
+    headingTapTimer = setTimeout(() => { headingTapCount = 0; }, 800);
+  });
+  registerCleanup(() => clearTimeout(headingTapTimer));
   page.querySelector('#credits-more').addEventListener('click', () => { pageNo++; fetchPeople(page.querySelector('input').value.trim()); });
   try { await fetchPeople(''); } catch (err) { grid.appendChild(errorView(err)); }
 }
@@ -1037,6 +1150,7 @@ function startApp() {
   document.getElementById('app-root').classList.remove('hidden');
   document.getElementById('bottom-nav').classList.remove('hidden');
   setupSearchUi();
+  setupBottomMoreMenu();
 
   /* Header is position:fixed so it stays pinned on every page; this keeps
      --header-h in sync with its real height (it grows when the search bar

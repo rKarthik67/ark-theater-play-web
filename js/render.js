@@ -145,7 +145,7 @@ function enableDragScroll(row) {
     if (!isDown) return;
     const dx = e.clientX - startX;
     moved = Math.max(moved, Math.abs(dx));
-    if (!captured && moved > 4) {
+    if (!captured && moved > 10) {
       captured = true;
       row.classList.add('dragging');
       try { row.setPointerCapture(pointerId); } catch { /* ignore */ }
@@ -256,7 +256,7 @@ function enableHeroSwipe(hero, track, getActive, goTo) {
   hero.addEventListener('pointermove', (e) => {
     if (!down) return;
     deltaX = e.clientX - startX;
-    if (!dragging && Math.abs(deltaX) > 4) {
+    if (!dragging && Math.abs(deltaX) > 10) {
       dragging = true;
       hero.classList.add('dragging');
       track.style.transition = 'none';

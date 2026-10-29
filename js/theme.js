@@ -9,6 +9,12 @@ const ARK_ACCENTS = [
   { id: 'sapphire', name: 'Sapphire', c1: '#cfe3ff', c2: '#6aaeff', c3: '#2567d1', c4: '#123a73' },
   { id: 'amethyst', name: 'Amethyst', c1: '#e9d6ff', c2: '#c084f5', c3: '#7d3fc2', c4: '#431f6b' },
   { id: 'silver', name: 'Silver', c1: '#ffffff', c2: '#d6d6d6', c3: '#9a9a9a', c4: '#4d4d4d' },
+  { id: 'rose', name: 'Rose', c1: '#ffd6e8', c2: '#ff8fc2', c3: '#e0398f', c4: '#7a1a4d' },
+  { id: 'bronze', name: 'Bronze', c1: '#f3d9b0', c2: '#d9a05c', c3: '#a8662a', c4: '#5c3414' },
+  { id: 'teal', name: 'Teal', c1: '#c8fff0', c2: '#4fe0c8', c3: '#159e8a', c4: '#0b5c50' },
+  { id: 'indigo', name: 'Indigo', c1: '#d6d6ff', c2: '#8f8fff', c3: '#4b3fc2', c4: '#241b6b' },
+  { id: 'lime', name: 'Lime', c1: '#eaffb0', c2: '#c8ff5c', c3: '#8fae1f', c4: '#4a5c0e' },
+  { id: 'steel', name: 'Steel', c1: '#e6edf5', c2: '#b8c6d6', c3: '#6e8299', c4: '#37424d' },
 ];
 
 function applyArkAccent(id) {

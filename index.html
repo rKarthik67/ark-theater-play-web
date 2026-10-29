@@ -79,7 +79,23 @@
     <svg viewBox="0 0 24 24"><path d="M6 2h12a1 1 0 0 1 1 1v18l-7-4.5L5 21V3a1 1 0 0 1 1-1z"/></svg>
     <span>Watchlist</span>
   </a>
+  <button id="bottom-more-toggle" data-route="">
+    <svg viewBox="0 0 24 24"><path d="M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+    <span>More</span>
+  </button>
 </nav>
+
+<div id="bottom-more-backdrop" class="bottom-more-backdrop hidden"></div>
+<div id="bottom-more-menu" class="bottom-more-menu hidden">
+  <a href="#/platforms" data-route="platforms">
+    <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zm9 0h7v7h-7zm-9 9h7v7H4zm9 0h7v7h-7z"/></svg>
+    Platforms
+  </a>
+  <a href="#/credits" data-route="credits">
+    <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.4 0-8 2.2-8 5v3h16v-3c0-2.8-3.6-5-8-5z"/></svg>
+    Credits
+  </a>
+</div>
 
 <footer class="app-footer">
   <p>Unofficial fan tribute UI. Metadata &amp; images courtesy of
@@ -102,6 +118,7 @@
 <script src="js/recentlywatched.js"></script>
 <script src="js/platforms.js"></script>
 <script src="js/player-sources.js"></script>
+<script src="js/animeids.js"></script>
 <script src="js/render.js"></script>
 <script src="js/app.js"></script>
 </body>
