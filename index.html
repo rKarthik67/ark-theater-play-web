@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&family=DM+Serif+Display&family=Great+Vibes&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=Josefin+Sans:wght@400;600&family=Libre+Baskerville&family=Lora:wght@400;600&family=Manrope:wght@400;500;600;700;800&family=Marcellus&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Noto+Sans:wght@400;600&family=Nunito:wght@400;700&family=Oswald:wght@400;600&family=Outfit:wght@400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Poppins:wght@400;600;700&family=Quicksand:wght@400;600&family=Raleway:wght@400;600&family=Roboto:wght@400;500;700&family=Rubik:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 </head>
 <body>
 
@@ -55,6 +56,19 @@
     <div id="search-suggestions" class="search-suggestions"></div>
   </div>
 </header>
+
+<div id="stream-gate-modal" class="stream-gate-overlay hidden">
+  <form class="gate-card stream-gate-card" id="stream-gate-form">
+    <h1>Stream source</h1>
+    <p class="gate-copy">Enter the code from ARKTheater's Settings &rarr; ArkPlay unlock code.</p>
+    <input id="stream-gate-input" type="text" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="4-digit code" autocomplete="off">
+    <div id="stream-gate-error" class="stream-gate-error hidden"></div>
+    <div class="stream-gate-actions">
+      <button type="button" id="stream-gate-cancel" class="btn">Cancel</button>
+      <button type="submit" id="stream-gate-submit" class="btn btn-gold">Unlock</button>
+    </div>
+  </form>
+</div>
 
 <main id="app-root" class="app-root hidden"></main>
 
@@ -110,6 +124,9 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <script src="js/tmdb.js"></script>
 <script src="js/fonts.js"></script>
 <script src="js/theme.js"></script>
@@ -118,8 +135,10 @@
 <script src="js/recentlywatched.js"></script>
 <script src="js/platforms.js"></script>
 <script src="js/player-sources.js"></script>
+<script src="js/streamgate.js"></script>
 <script src="js/animeids.js"></script>
 <script src="js/render.js"></script>
+<script src="js/custom-player.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

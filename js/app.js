@@ -512,18 +512,260 @@ async function renderPlayer(mediaType, id) {
         </div>
         <div class="player-layout ${mediaType === 'tv' ? 'player-layout-tv' : ''}"><div class="player-stage">
           <iframe id="player-frame" src="${PlayerSources.url('vidsrc-sh', mediaType, id)}" title="${escapeHtml(title)} player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          <video id="player-video" class="hidden" controls playsinline></video>
         </div>
         ${mediaType === 'tv' ? `<aside class="episode-rail"><div class="episode-picker"><label>Season <select id="player-season"></select></label><label>Episode <select id="player-episode"></select></label></div><section class="episode-list-wrap"><h3>Episodes</h3><div class="episode-list" id="player-episodes"></div></section></aside>` : ''}</div>
-        <div class="player-servers"><span>Player servers</span><div id="player-source-list"></div></div>
+        <div id="player-scraper-panel" class="player-scraper-panel hidden">
+          <div class="player-scraper-head"><h3>Scraper Sources</h3><button type="button" class="chip" id="player-skin-toggle"></button></div>
+          <div id="player-scraper-note"></div>
+          <div class="player-scraper-servers" id="player-scraper-servers"></div>
+        </div>
+        <div class="player-servers"><span>Player Servers</span><div id="player-source-list"></div></div>
         <div class="player-info"><img src="${TMDB.poster(d.poster_path, 'w342') || ''}" alt=""><div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(d.overview || 'Find this title on an available streaming service.')}</p></div></div>
         <section class="player-providers"><h3>Where to watch</h3><p>Availability is based on your region and provided by TMDB/JustWatch.</p><div class="player-provider-list"></div></section>
       </div>`);
     player.querySelector('#player-back').addEventListener('click', () => { location.hash = `#/detail/${mediaType}/${id}`; });
-    const frame = player.querySelector('#player-frame'); let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1; let animeAnilistId = null;
+    const frame = player.querySelector('#player-frame');
+    // Reassigned on every teardown (see createFreshVideo) rather than reused
+    // across ArkPlayer/Plyr/classic - each of those wraps or rewrites the
+    // <video> element differently, and relying on each library's destroy()
+    // to perfectly restore a shared element before the next one wraps it
+    // was the actual source of "something's wrong with ark/plyr": whichever
+    // skin ran second inherited DOM state left behind by the previous one.
+    let video = player.querySelector('#player-video');
+    const createFreshVideo = () => {
+      const fresh = document.createElement('video');
+      fresh.id = 'player-video';
+      fresh.className = 'hidden';
+      fresh.setAttribute('playsinline', '');
+      // Without this, browsers silently refuse to even fetch a <track> file
+      // that's on a different origin than the page - no error, the cues
+      // just never load. That's true regardless of which player UI sits on
+      // top, which is why subtitles failed the same way in all three.
+      fresh.crossOrigin = 'anonymous';
+      video.replaceWith(fresh);
+      video = fresh;
+      return video;
+    };
+    const scraperPanel = player.querySelector('#player-scraper-panel');
+    const scraperNote = player.querySelector('#player-scraper-note');
+    const scraperServerList = player.querySelector('#player-scraper-servers');
+    const skinToggle = player.querySelector('#player-skin-toggle');
+    let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1; let animeAnilistId = null;
+    let hls = null; let dash = null; let activeScraperLink = null;
+    // The custom player skin is only attached once, the first time native
+    // playback is actually needed - no point building it around an <iframe>
+    // embed that never uses it. The viewer can cycle to two fallbacks
+    // instead: the plain browser controls (classic), or Plyr - a
+    // battle-tested open-source player (github.com/sampotts/plyr) - for
+    // more reliable subtitle/quality menu behaviour than hand-rolling it.
+    const PLAYER_SKINS = ['ark', 'plyr', 'classic'];
+    let arkPlayer = null;
+    let plyrPlayer = null;
+    let playerSkin = PLAYER_SKINS.includes(localStorage.getItem('ark_player_skin'))
+      ? localStorage.getItem('ark_player_skin') : 'ark';
+
+    // Both ArkPlayer and Plyr wrap the <video> in their own container div,
+    // with their bar/menus as siblings of the video inside it - hiding just
+    // the <video> would leave those floating over the iframe, so whichever
+    // wrapper actually exists is what needs to be shown/hidden.
+    const nativeStageEl = () => plyrPlayer?.elements?.container || arkPlayer?.el || video;
+    const showNativeStage = () => { frame.classList.add('hidden'); nativeStageEl().classList.remove('hidden'); };
+    const showIframeStage = () => { frame.classList.remove('hidden'); nativeStageEl().classList.add('hidden'); };
+
+    // hls.js quality levels for whatever stream is currently loaded, cached
+    // so applySkin() (switching skins) can rebuild Plyr's/ArkPlayer's
+    // quality menu instantly without needing a fresh MANIFEST_PARSED event.
+    let cachedLevels = [];
+
+    const teardownNativePlayback = () => {
+      hls?.destroy(); hls = null;
+      dash?.reset(); dash = null;
+      cachedLevels = [];
+      plyrPlayer?.destroy(); plyrPlayer = null;
+      arkPlayer?.destroy(); arkPlayer = null;
+      createFreshVideo();
+    };
+
+    // Matching a TextTrack back to the <track> that created it by stashing a
+    // custom property on the TextTrack object turned out unreliable (tracks
+    // stayed mode="hidden" even though the files loaded fine) - matching by
+    // position in video.textTracks instead is well-defined per spec (same
+    // order as the <track> elements in the DOM) and doesn't depend on that.
+    // Only used for ArkPlayer's own menu - Plyr and the classic player both
+    // manage caption track selection themselves from the <track> elements.
+    const selectSubtitleIndex = (link, index) => {
+      [...video.textTracks].forEach((track, trackIndex) => {
+        track.mode = trackIndex === index ? 'showing' : 'hidden';
+      });
+      arkPlayer?.setSubtitles(
+        (link?.subtitles || []).map((s, i) => ({ ...s, active: i === index })),
+        (nextIndex) => selectSubtitleIndex(link, nextIndex)
+      );
+    };
+
+    /* Wraps/unwraps the *currently loaded* video with whichever skin is
+       selected, without touching hls/dash/src/tracks at all - this is what
+       the skin-toggle button calls, so switching players is instant and
+       doesn't interrupt playback or re-fetch the stream. Re-fetching used
+       to be the only option (switching called attachNativePlayback again,
+       tearing the whole stream down) and was why switching mid-playback
+       went black: a full reload, which can also simply fail if the
+       provider's stream URL is a short-lived signed link by that point. */
+    const applySkin = () => {
+      plyrPlayer?.destroy(); plyrPlayer = null;
+      arkPlayer?.destroy(); arkPlayer = null;
+
+      if (playerSkin === 'classic') {
+        video.controls = true;
+      } else if (playerSkin === 'ark') {
+        arkPlayer = ArkPlayer.attach(video);
+        const activeIndex = [...video.textTracks].findIndex((t) => t.mode === 'showing');
+        selectSubtitleIndex(activeScraperLink, activeIndex);
+        if (cachedLevels.length > 1) {
+          const selectLevel = (levelIndex) => {
+            hls.currentLevel = levelIndex;
+            arkPlayer.setQualityLevels(cachedLevels.map((l) => ({ ...l, active: l.index === levelIndex })), selectLevel);
+          };
+          selectLevel(hls ? hls.currentLevel : -1);
+        }
+      } else if (playerSkin === 'plyr') {
+        const options = { captions: { active: true } };
+        if (cachedLevels.length > 1) {
+          options.quality = {
+            default: cachedLevels[0].sortKey,
+            options: cachedLevels.map((l) => l.sortKey),
+            forced: true,
+            onChange: (newHeight) => {
+              const match = cachedLevels.find((l) => l.sortKey === newHeight);
+              if (match && hls) hls.currentLevel = match.index;
+            },
+          };
+        }
+        plyrPlayer = new Plyr(video, options);
+      }
+      showNativeStage();
+    };
+
+    const attachNativePlayback = (link) => {
+      activeScraperLink = link;
+      teardownNativePlayback();
+      // Switch away from the iframe immediately - leaving it showing until
+      // the new stream is ready reads as "nothing happened" while it loads.
+      showNativeStage();
+
+      if (link.subtitles?.length) {
+        link.subtitles.forEach((subtitle, index) => {
+          const trackEl = document.createElement('track');
+          trackEl.kind = 'subtitles';
+          trackEl.src = subtitle.file;
+          trackEl.label = subtitle.label || 'Unknown';
+          // The classic player and Plyr both pick their default caption
+          // track from this attribute via their own native/built-in menu -
+          // only ArkPlayer needs the explicit selectSubtitleIndex below.
+          if (index === 0) trackEl.default = true;
+          video.appendChild(trackEl);
+        });
+      }
+
+      if (link.isDASH) {
+        dash = dashjs.MediaPlayer().create();
+        dash.initialize(video, link.url, false);
+        applySkin();
+      } else if (link.isM3U8 && window.Hls?.isSupported()) {
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+          if (data.levels.length > 1) {
+            cachedLevels = [...data.levels]
+              .map((level, index) => ({
+                index,
+                sortKey: level.height || level.bitrate || 0,
+                label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)} kbps`,
+              }))
+              .sort((a, b) => b.sortKey - a.sortKey);
+          }
+          applySkin();
+        });
+        hls.loadSource(link.url);
+        hls.attachMedia(video);
+      } else {
+        video.src = link.url;
+        applySkin();
+      }
+    };
+
+    const SKIN_LABELS = { ark: 'ArkPlayer', plyr: 'Plyr', classic: 'Classic' };
+    const refreshSkinToggleLabel = () => {
+      const next = PLAYER_SKINS[(PLAYER_SKINS.indexOf(playerSkin) + 1) % PLAYER_SKINS.length];
+      skinToggle.textContent = `${SKIN_LABELS[playerSkin]} · Switch to ${SKIN_LABELS[next]}`;
+    };
+    refreshSkinToggleLabel();
+    skinToggle.addEventListener('click', () => {
+      playerSkin = PLAYER_SKINS[(PLAYER_SKINS.indexOf(playerSkin) + 1) % PLAYER_SKINS.length];
+      localStorage.setItem('ark_player_skin', playerSkin);
+      refreshSkinToggleLabel();
+      // Re-skin the already-playing video in place - no stream reload.
+      if (activeScraperLink) applySkin();
+    });
+
+    /* Every enabled provider is queried in parallel (see streamgate.js) and
+       each one's servers are appended here as they resolve, rather than
+       stopping at the first provider that works - the viewer gets to
+       choose among all of them, independently of which iframe "Player
+       Servers" entry (if any) is currently showing. */
+    const loadArkScraperStream = async () => {
+      scraperPanel.classList.remove('hidden');
+      scraperNote.textContent = 'Looking for streams…';
+      scraperServerList.innerHTML = '';
+      try {
+        await StreamGate.fetchScraperStream({
+          type: mediaType, tmdbId: id, season, episode,
+          onResult: ({ links }) => {
+            if (!links?.length) return;
+            links.forEach(link => {
+              const button = el(`<button class="chip ${scraperServerList.children.length === 0 ? 'active' : ''}">${escapeHtml(link.providerName)} · ${escapeHtml(link.server || 'Server')}${link.quality ? ` · ${escapeHtml(link.quality)}` : ''}</button>`);
+              button.addEventListener('click', () => {
+                attachNativePlayback(link);
+                scraperServerList.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button));
+              });
+              scraperServerList.appendChild(button);
+              if (!activeScraperLink) attachNativePlayback(link);
+            });
+          },
+        });
+        scraperNote.textContent = scraperServerList.children.length ? '' : 'No streams found for this title.';
+      } catch (error) {
+        if (!scraperServerList.children.length) {
+          scraperNote.textContent = error.message || 'Unable to reach the stream source.';
+        }
+      }
+    };
+
     const refreshFrame = () => {
+      activeScraperLink = null;
+      showIframeStage();
+      teardownNativePlayback();
       frame.src = selectedSource === 'vidsync-anime' && animeAnilistId
         ? PlayerSources.anime(animeAnilistId, episode)
         : PlayerSources.url(selectedSource, mediaType, id, season, episode);
+    };
+
+    /* A season/episode change always needs fresh Scraper Sources, but
+       should only disturb the iframe if the viewer wasn't already playing
+       through a scraper link - otherwise jumping to the next episode would
+       yank someone back to an iframe they'd deliberately moved away from. */
+    const onEpisodeChanged = () => {
+      const wasScraperMode = Boolean(activeScraperLink);
+      activeScraperLink = null;
+      scraperServerList.innerHTML = '';
+      scraperNote.textContent = '';
+      if (wasScraperMode) {
+        teardownNativePlayback();
+        showNativeStage();
+      } else {
+        refreshFrame();
+      }
+      if (StreamGate.isUnlocked()) loadArkScraperStream();
     };
     const sourceList = player.querySelector('#player-source-list');
     PlayerSources.list.forEach((source, index) => {
@@ -534,6 +776,12 @@ async function renderPlayer(mediaType, id) {
       });
       sourceList.appendChild(button);
     });
+    // TV shows get their first Scraper Sources load from onEpisodeChanged()
+    // via loadEpisodes() below (it needs season/episode resolved first) -
+    // calling it here too would fetch the same title twice.
+    if (mediaType !== 'tv' && StreamGate.isUnlocked()) {
+      loadArkScraperStream();
+    }
     /* Anime titles use the documented VidSync AniList route rather than a
        TMDB movie/TV route. The mapping stays asynchronous so normal titles
        remain fast and unaffected. */
@@ -588,7 +836,7 @@ async function renderPlayer(mediaType, id) {
         const list = player.querySelector('#player-episodes'); list.innerHTML = '';
         episodes.forEach(item => {
           const row = el(`<button class="episode-row ${item.episode_number === episode ? 'active' : ''}">${item.still_path ? `<img src="${TMDB.backdrop(item.still_path, 'w342')}" alt="">` : '<div class="episode-still-placeholder">No image</div>'}<span class="episode-row-copy"><b>${item.episode_number}. ${escapeHtml(item.name || `Episode ${item.episode_number}`)}</b><small>${item.runtime ? `${item.runtime} min` : item.air_date || ''}</small><em>${escapeHtml(item.overview || '')}</em></span></button>`);
-          row.addEventListener('click', () => { episode = item.episode_number; episodeSelect.value = String(episode); refreshFrame(); drawEpisodes(episodes); });
+          row.addEventListener('click', () => { episode = item.episode_number; episodeSelect.value = String(episode); onEpisodeChanged(); drawEpisodes(episodes); });
           list.appendChild(row);
         });
       }
@@ -596,10 +844,10 @@ async function renderPlayer(mediaType, id) {
         season = Number(seasonSelect.value) || 1; episode = 1; episodeSelect.innerHTML = '<option>Loading…</option>'; episodeSelect.disabled = true;
         try { const data = await TMDB.season(id, season); const episodes = data.episodes || []; episodeSelect.innerHTML = ''; episodes.forEach(e => episodeSelect.appendChild(el(`<option value="${e.episode_number}">${e.episode_number}. ${escapeHtml(e.name || `Episode ${e.episode_number}`)}</option>`))); drawEpisodes(episodes); }
         catch { episodeSelect.innerHTML = '<option value="1">Episode 1</option>'; player.querySelector('#player-episodes').innerHTML = '<div class="player-empty">Episodes unavailable.</div>'; }
-        episodeSelect.disabled = false; refreshFrame();
+        episodeSelect.disabled = false; onEpisodeChanged();
       }
       seasonSelect.addEventListener('change', loadEpisodes);
-      episodeSelect.addEventListener('change', () => { episode = Number(episodeSelect.value) || 1; refreshFrame(); loadEpisodesForSelection(); });
+      episodeSelect.addEventListener('change', () => { episode = Number(episodeSelect.value) || 1; onEpisodeChanged(); loadEpisodesForSelection(); });
       function loadEpisodesForSelection() { player.querySelectorAll('.episode-row').forEach(row => row.classList.toggle('active', row.textContent.trim().startsWith(`${episode}.`))); }
       if (seasons.length) loadEpisodes();
     }
@@ -1158,6 +1406,51 @@ async function router() {
   window.scrollTo(0, 0);
 }
 
+/* ---------------- Stream source gate ---------------- */
+const TRIPLE_CLICK_WINDOW_MS = 600;
+function setupStreamGateUi() {
+  const brand = document.querySelector('.brand');
+  const modal = document.getElementById('stream-gate-modal');
+  const form = document.getElementById('stream-gate-form');
+  const input = document.getElementById('stream-gate-input');
+  const errorBox = document.getElementById('stream-gate-error');
+  const cancelBtn = document.getElementById('stream-gate-cancel');
+  let clickTimes = [];
+
+  brand.addEventListener('click', (event) => {
+    if (StreamGate.isUnlocked()) return;
+    const now = Date.now();
+    clickTimes = [...clickTimes, now].filter((time) => now - time <= TRIPLE_CLICK_WINDOW_MS);
+    if (clickTimes.length >= 3) {
+      clickTimes = [];
+      event.preventDefault();
+      errorBox.classList.add('hidden');
+      input.value = '';
+      modal.classList.remove('hidden');
+      input.focus();
+    }
+  });
+
+  const closeModal = () => modal.classList.add('hidden');
+  cancelBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/\D/g, '').slice(0, 4);
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (input.value.length !== 4) return;
+    try {
+      await StreamGate.unlock(input.value);
+      closeModal();
+    } catch (error) {
+      errorBox.textContent = error.message || 'Incorrect code';
+      errorBox.classList.remove('hidden');
+    }
+  });
+}
+
 /* ---------------- Bootstrap ---------------- */
 function boot() {
   initArkFont();
@@ -1172,6 +1465,7 @@ function startApp() {
   document.getElementById('bottom-nav').classList.remove('hidden');
   setupSearchUi();
   setupBottomMoreMenu();
+  setupStreamGateUi();
 
   /* Header is position:fixed so it stays pinned on every page; this keeps
      --header-h in sync with its real height (it grows when the search bar
