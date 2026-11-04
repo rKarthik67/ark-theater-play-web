@@ -2,5 +2,15 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  # TMDB_API_KEY is a client-side browse/metadata key, embedded directly in
+  # js/tmdb.js on purpose - this is a static site with no server to keep it
+  # out of the shipped JS. It's also set as a Netlify env var (unrelated to
+  # this), which makes the secrets scanner flag the literal match as a leak.
+  # It isn't one - omit it from that scan rather than disabling the scan
+  # entirely, so a genuine accidental leak (e.g. ARKPLAY_STREAM_SECRET)
+  # still gets caught.
+  SECRETS_SCAN_OMIT_KEYS = "TMDB_API_KEY"
+
 [functions]
   node_bundler = "esbuild"
