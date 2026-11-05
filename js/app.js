@@ -516,7 +516,7 @@ async function renderPlayer(mediaType, id) {
         </div>
         ${mediaType === 'tv' ? `<aside class="episode-rail"><div class="episode-picker"><label>Season <select id="player-season"></select></label><label>Episode <select id="player-episode"></select></label></div><section class="episode-list-wrap"><h3>Episodes</h3><div class="episode-list" id="player-episodes"></div></section></aside>` : ''}</div>
         <div id="player-scraper-panel" class="player-scraper-panel hidden">
-          <div class="player-scraper-head"><h3>Scraper Sources</h3><button type="button" class="chip" id="player-skin-toggle"></button></div>
+          <div class="player-scraper-head"><h3>Scraper Sources</h3><div class="player-skin-list" id="player-skin-list"></div></div>
           <div id="player-scraper-note"></div>
           <div class="player-scraper-servers" id="player-scraper-servers"></div>
         </div>
@@ -550,7 +550,7 @@ async function renderPlayer(mediaType, id) {
     const scraperPanel = player.querySelector('#player-scraper-panel');
     const scraperNote = player.querySelector('#player-scraper-note');
     const scraperServerList = player.querySelector('#player-scraper-servers');
-    const skinToggle = player.querySelector('#player-skin-toggle');
+    const skinList = player.querySelector('#player-skin-list');
     let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1; let animeAnilistId = null;
     let hls = null; let dash = null; let activeScraperLink = null;
     // The custom player skin is only attached once, the first time native
@@ -695,17 +695,17 @@ async function renderPlayer(mediaType, id) {
     };
 
     const SKIN_LABELS = { ark: 'ArkPlayer', plyr: 'Plyr', classic: 'Classic' };
-    const refreshSkinToggleLabel = () => {
-      const next = PLAYER_SKINS[(PLAYER_SKINS.indexOf(playerSkin) + 1) % PLAYER_SKINS.length];
-      skinToggle.textContent = `${SKIN_LABELS[playerSkin]} · Switch to ${SKIN_LABELS[next]}`;
-    };
-    refreshSkinToggleLabel();
-    skinToggle.addEventListener('click', () => {
-      playerSkin = PLAYER_SKINS[(PLAYER_SKINS.indexOf(playerSkin) + 1) % PLAYER_SKINS.length];
+    const selectSkin = (skin) => {
+      playerSkin = skin;
       localStorage.setItem('ark_player_skin', playerSkin);
-      refreshSkinToggleLabel();
+      skinList.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.skin === skin));
       // Re-skin the already-playing video in place - no stream reload.
       if (activeScraperLink) applySkin();
+    };
+    PLAYER_SKINS.forEach((skin) => {
+      const button = el(`<button type="button" class="chip ${skin === playerSkin ? 'active' : ''}" data-skin="${skin}">${SKIN_LABELS[skin]}</button>`);
+      button.addEventListener('click', () => selectSkin(skin));
+      skinList.appendChild(button);
     });
 
     /* Every enabled provider is queried in parallel (see streamgate.js) and
@@ -813,6 +813,10 @@ async function renderPlayer(mediaType, id) {
       });
       rail.addEventListener('pointermove', event => {
         if (event.pointerId !== railPointerId) return;
+        // Defensive: a move with no button held at all can never be a real
+        // drag continuing, regardless of what state was left over from
+        // before - self-correct instead of trusting railCaptured alone.
+        if (event.buttons === 0 && railCaptured) { endRailDrag(event); return; }
         const distance = event.clientY - dragStartY;
         if (!railCaptured && Math.abs(distance) > 10) {
           railCaptured = true; railDragging = true;
@@ -824,6 +828,14 @@ async function renderPlayer(mediaType, id) {
       const endRailDrag = event => {
         if (railCaptured && rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
         rail.classList.remove('drag-ready', 'dragging');
+        // Without this, railCaptured/railPointerId stayed stuck at whatever
+        // they were mid-drag - since a mouse's pointerId is typically the
+        // same constant value across entirely separate interactions, the
+        // very next mouse move (no button held at all) could still match
+        // the stale id, see railCaptured still true, and scroll the rail
+        // as if a drag were still happening.
+        railCaptured = false;
+        railPointerId = null;
       };
       rail.addEventListener('pointerup', endRailDrag); rail.addEventListener('pointercancel', endRailDrag);
       rail.addEventListener('click', event => {
