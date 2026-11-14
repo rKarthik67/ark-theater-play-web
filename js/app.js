@@ -501,6 +501,25 @@ async function renderPlayer(mediaType, id) {
     const trailer = (d.videos?.results || []).find(v => v.site === 'YouTube' && v.type === 'Trailer')
       || (d.videos?.results || []).find(v => v.site === 'YouTube');
     const entry = providerEntry(providerData);
+    // Drives ArkPlayer's loading/pause overlays - a TMDB "clearlogo" title
+    // treatment where one exists, plus the same facts/overview/runtime this
+    // page already has on hand, so the player doesn't need its own fetch.
+    const playerMeta = (() => {
+      const runtimeNum = mediaType === 'tv' ? (d.episode_run_time || [])[0] : d.runtime;
+      const h = runtimeNum ? Math.floor(runtimeNum / 60) : 0;
+      const m = runtimeNum ? runtimeNum % 60 : 0;
+      return {
+        title,
+        logoUrl: TMDB.logo(TMDB.bestLogoPath(d.images)),
+        eyebrow: mediaType === 'tv' ? 'TV Show' : 'Movie',
+        year: (d.release_date || d.first_air_date || '').slice(0, 4) || null,
+        runtimeLabel: runtimeNum ? (h ? `${h}h ${m}m` : `${m}m`) : null,
+        rating: d.vote_average ? d.vote_average.toFixed(1) : null,
+        genresLabel: (d.genres || []).slice(0, 3).map(g => g.name).join(', ') || null,
+        overview: d.overview ? escapeHtml(d.overview) : null,
+        onBack: () => { location.hash = `#/detail/${mediaType}/${id}`; },
+      };
+    })();
     const player = el(`
       <div class="player-page">
         <div class="player-head">
@@ -619,7 +638,7 @@ async function renderPlayer(mediaType, id) {
       if (playerSkin === 'classic') {
         video.controls = true;
       } else if (playerSkin === 'ark') {
-        arkPlayer = ArkPlayer.attach(video);
+        arkPlayer = ArkPlayer.attach(video, playerMeta);
         const activeIndex = [...video.textTracks].findIndex((t) => t.mode === 'showing');
         selectSubtitleIndex(activeScraperLink, activeIndex);
         if (cachedLevels.length > 1) {

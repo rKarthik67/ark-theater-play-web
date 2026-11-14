@@ -32,11 +32,23 @@ const TMDB = (() => {
   const backdrop = (path, size = 'w1280') => path ? `${IMG}/${size}${path}` : null;
   const profile = (path, size = 'w185') => path ? `${IMG}/${size}${path}` : null;
   const providerLogo = (path, size = 'w92') => path ? `${IMG}/${size}${path}` : null;
+  const logo = (path, size = 'w500') => path ? `${IMG}/${size}${path}` : null;
+
+  // Picks the title-treatment PNG (transparent "clearlogo") TMDB ships for
+  // most well-known titles - an English one if available, else any
+  // language-agnostic one, else just the highest-voted logo there is.
+  const bestLogoPath = (images) => {
+    const logos = images?.logos || [];
+    if (!logos.length) return null;
+    const byLang = (lang) => logos.filter((l) => l.iso_639_1 === lang).sort((a, b) => b.vote_average - a.vote_average)[0];
+    const pick = byLang('en') || byLang(null) || [...logos].sort((a, b) => b.vote_average - a.vote_average)[0];
+    return pick?.file_path || null;
+  };
 
   return {
     hasKey: () => !!key(),
     setKey: (k) => localStorage.setItem('ark_tmdb_key', k.trim()),
-    poster, backdrop, profile, providerLogo,
+    poster, backdrop, profile, providerLogo, logo, bestLogoPath,
 
     trending: (mediaType = 'all', window = 'week') => call(`/trending/${mediaType}/${window}`),
     popular: (mediaType = 'movie', page = 1) => call(`/${mediaType}/popular`, { page }),
@@ -48,7 +60,8 @@ const TMDB = (() => {
     genres: (mediaType) => call(`/genre/${mediaType}/list`),
 
     details: (mediaType, id) => call(`/${mediaType}/${id}`, {
-      append_to_response: 'credits,videos,similar,recommendations'
+      append_to_response: 'credits,videos,similar,recommendations,images',
+      include_image_language: 'en,null'
     }),
     basic: (mediaType, id) => call(`/${mediaType}/${id}`),
     watchProviders: (mediaType, id) => call(`/${mediaType}/${id}/watch/providers`),
