@@ -715,7 +715,7 @@ async function renderPlayer(mediaType, id) {
        Servers" entry (if any) is currently showing. */
     const loadArkScraperStream = async () => {
       scraperPanel.classList.remove('hidden');
-      scraperNote.textContent = 'Looking for streams…';
+      scraperNote.textContent = 'Fetching streams…';
       scraperServerList.innerHTML = '';
       try {
         await StreamGate.fetchScraperStream({
