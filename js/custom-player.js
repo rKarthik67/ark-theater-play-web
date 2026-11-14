@@ -166,6 +166,7 @@ const ArkPlayer = (() => {
       </div>
     `);
 
+    const chrome = wrap.querySelector('.ark-chrome');
     const loadingLayer = wrap.querySelector('.ark-loading');
     const pauseLayer = wrap.querySelector('.ark-pause-layer');
     const pauseRemaining = wrap.querySelector('.ark-pause-remaining');
@@ -241,12 +242,37 @@ const ArkPlayer = (() => {
       if (video.paused) video.play().catch(() => {});
       else video.pause();
     }
+    function seekBy(delta) {
+      const next = video.currentTime + delta;
+      video.currentTime = Number.isFinite(video.duration) ? Math.min(Math.max(0, next), video.duration) : Math.max(0, next);
+    }
     centerBtn.addEventListener('click', togglePlay);
     playBtn.addEventListener('click', togglePlay);
-    rewindBtn.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - SEEK_SECONDS); });
-    forwardBtn.addEventListener('click', () => {
-      video.currentTime = Number.isFinite(video.duration) ? Math.min(video.duration, video.currentTime + SEEK_SECONDS) : video.currentTime + SEEK_SECONDS;
-    });
+    rewindBtn.addEventListener('click', () => seekBy(-SEEK_SECONDS));
+    forwardBtn.addEventListener('click', () => seekBy(SEEK_SECONDS));
+    // .ark-chrome sits as a full-size layer over the whole video (so its
+    // bars can be positioned anywhere within it) with no background of its
+    // own - clicking its empty middle previously did nothing, since only
+    // the individual buttons inside it had listeners. Checking that the
+    // click target *is* the chrome layer itself (not a bubbled descendant)
+    // gives a tap-anywhere-on-the-video toggle without stealing clicks
+    // meant for the scrub bar, buttons, or settings sheet.
+    chrome.addEventListener('click', (event) => { if (event.target === chrome) togglePlay(); });
+
+    // Keyboard shortcuts match the transport buttons exactly - Space mirrors
+    // the big play/pause control, the arrows mirror the +/-10s rewind and
+    // forward buttons. Skipped while the viewer is typing anywhere (e.g. the
+    // subtitle search box) so a space or arrow keystroke there isn't hijacked.
+    function isTypingTarget(target) {
+      return Boolean(target) && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    }
+    function handleKeydown(event) {
+      if (isTypingTarget(event.target)) return;
+      if (event.code === 'Space') { event.preventDefault(); togglePlay(); showBar(); }
+      else if (event.code === 'ArrowLeft') { event.preventDefault(); seekBy(-SEEK_SECONDS); showBar(); }
+      else if (event.code === 'ArrowRight') { event.preventDefault(); seekBy(SEEK_SECONDS); showBar(); }
+    }
+    document.addEventListener('keydown', handleKeydown);
 
     let hasPlayedOnce = false;
     function updatePauseVisibility() {
@@ -385,7 +411,7 @@ const ArkPlayer = (() => {
     let lastSubtitleFile = null;
     let sleepKey = 'off'; let sleepTimeoutId = null;
     let playbackRate = 1;
-    let cueSize = 'medium'; let cueSizeStyleEl = null;
+    let cueSize = 'medium'; let cueColor = 'white'; let cueStyleEl = null;
 
     function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
 
@@ -394,6 +420,17 @@ const ArkPlayer = (() => {
       row.type = 'button';
       row.className = 'ark-flyout-item';
       row.innerHTML = `<span>${label}</span>${active ? icon.check : ''}`;
+      row.addEventListener('click', () => { onClick(); closeSheet(); });
+      return row;
+    }
+    // Same row shell as buildRow, but with a colored swatch standing in for
+    // the usual label-only text - lets the Color section show the actual
+    // color being picked rather than just its name.
+    function buildColorRow(label, hex, active, onClick) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'ark-flyout-item';
+      row.innerHTML = `<span class="ark-swatch-label"><span class="ark-swatch" style="background:${hex}"></span>${label}</span>${active ? icon.check : ''}`;
       row.addEventListener('click', () => { onClick(); closeSheet(); });
       return row;
     }
@@ -488,19 +525,28 @@ const ArkPlayer = (() => {
     }
     playbackRow.addEventListener('click', openPlaybackSub);
 
-    // Cue size is applied via a dynamically injected <style> targeting the
-    // video's own ::cue pseudo-element - a real, standards-based way to
-    // resize WebVTT captions, not a faked control.
+    // Size and color are both applied via one dynamically injected <style>
+    // targeting the video's own ::cue pseudo-element - a real,
+    // standards-based way to restyle WebVTT captions, not a faked control.
     const CUE_SIZE_OPTIONS = [['small', 'Small', '1.6vw'], ['medium', 'Medium', '2.4vw'], ['large', 'Large', '3.2vw']];
-    function setCueSize(key) {
-      cueSize = key;
-      const opt = CUE_SIZE_OPTIONS.find(([k]) => k === key);
-      if (!cueSizeStyleEl) { cueSizeStyleEl = document.createElement('style'); wrap.appendChild(cueSizeStyleEl); }
-      cueSizeStyleEl.textContent = `.ark-player-video::cue { font-size: ${opt[2]}; }`;
+    const CUE_COLOR_OPTIONS = [
+      ['white', 'White', '#ffffff'], ['yellow', 'Yellow', '#ffe564'],
+      ['cyan', 'Cyan', '#67e8f9'], ['green', 'Green', '#4ade80'], ['pink', 'Pink', '#f9a8d4'],
+    ];
+    function applyCueStyle() {
+      const size = CUE_SIZE_OPTIONS.find(([k]) => k === cueSize)[2];
+      const color = CUE_COLOR_OPTIONS.find(([k]) => k === cueColor)[2];
+      if (!cueStyleEl) { cueStyleEl = document.createElement('style'); wrap.appendChild(cueStyleEl); }
+      cueStyleEl.textContent = `.ark-player-video::cue { font-size: ${size}; color: ${color}; }`;
     }
+    function setCueSize(key) { cueSize = key; applyCueStyle(); }
+    function setCueColor(key) { cueColor = key; applyCueStyle(); }
     function openSubtitleStyleSub() {
       showSub('Subtitle Settings', (container) => {
+        container.appendChild(el('<div class="ark-flyout-heading">Size</div>'));
         CUE_SIZE_OPTIONS.forEach(([key, label]) => container.appendChild(buildRow(label, cueSize === key, () => setCueSize(key))));
+        container.appendChild(el('<div class="ark-flyout-heading">Color</div>'));
+        CUE_COLOR_OPTIONS.forEach(([key, label, hex]) => container.appendChild(buildColorRow(label, hex, cueColor === key, () => setCueColor(key))));
       });
     }
     if (subtitleStyleRow) subtitleStyleRow.addEventListener('click', openSubtitleStyleSub);
@@ -577,6 +623,7 @@ const ArkPlayer = (() => {
 
     function destroy() {
       clearTimeout(sleepTimeoutId);
+      document.removeEventListener('keydown', handleKeydown);
       wrap.parentNode.insertBefore(video, wrap);
       video.classList.remove('ark-player-video');
       video.controls = true;

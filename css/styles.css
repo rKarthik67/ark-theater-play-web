@@ -786,6 +786,8 @@ a.id-badge:hover { color: var(--gold-1); border-color: var(--gold-2); background
 }
 .ark-flyout-item:hover { background: rgba(255,255,255,.08); }
 .ark-flyout-item svg { width: 14px; height: 14px; fill: #fff; }
+.ark-swatch-label { display: flex; align-items: center; gap: 9px; }
+.ark-swatch { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); display: inline-block; flex-shrink: 0; }
 
 @media (max-width: 640px) {
   .ark-pause-card { padding: 0 24px; }
@@ -799,4 +801,28 @@ a.id-badge:hover { color: var(--gold-1); border-color: var(--gold-2); background
   .ark-ends-at { display: none; }
   .ark-pause-card { padding: 0 18px; }
   .ark-pause-facts, .ark-pause-remaining { font-size: 11.5px; }
+  .ark-top, .ark-bottom { padding-left: 14px; padding-right: 14px; }
+  .ark-player-title { font-size: 13px; padding: 0 8px; }
+  .ark-icon-btn { width: 32px; height: 32px; }
+  .ark-icon-btn svg { width: 17px; height: 17px; }
+  .ark-controls { gap: 6px; }
+  .ark-rewind, .ark-forward { width: 32px; height: 32px; }
+  .ark-rewind svg, .ark-forward svg { width: 18px; height: 18px; }
+  .ark-transport-play { width: 40px; height: 40px; }
+  .ark-transport-play svg { width: 19px; height: 19px; }
+  .ark-time { font-size: 11.5px; gap: 3px; }
+  /* Both edges pinned (rather than a fixed width) so the sheet always fits
+     the player's own width on a phone screen, instead of overflowing past
+     a narrow viewport the way the desktop 300px panel would. */
+  .ark-sheet { left: 8px; right: 8px; width: auto; }
+  .ark-sheet-grid { gap: 6px; }
+  .ark-sheet-card { padding: 10px; }
+}
+
+/* Hovering to reveal the volume slider isn't a thing on a touch screen, so
+   it would otherwise sit permanently invisible and unreachable - touch
+   devices get the mute button only, same as most mobile video players
+   (the hardware volume buttons cover the rest). */
+@media (hover: none) {
+  .ark-volume-slider { display: none; }
 }
