@@ -572,6 +572,7 @@ async function renderPlayer(mediaType, id) {
     const skinList = player.querySelector('#player-skin-list');
     let selectedSource = 'vidsrc-sh'; let season = 1; let episode = 1; let animeAnilistId = null;
     let hls = null; let dash = null; let activeScraperLink = null;
+    let scraperLinks = [];
     // The custom player skin is only attached once, the first time native
     // playback is actually needed - no point building it around an <iframe>
     // embed that never uses it. The viewer can cycle to two fallbacks
@@ -623,6 +624,36 @@ async function renderPlayer(mediaType, id) {
       );
     };
 
+    // Mirrors the external "Scraper Sources" chip list into ArkPlayer's own
+    // Server card - selecting one there runs the same attachNativePlayback
+    // call a chip click would, and the chip row's active state stays in sync.
+    const syncServerMenu = () => {
+      if (!arkPlayer) return;
+      arkPlayer.setServers(
+        scraperLinks.map((entry) => ({ id: entry.link, label: entry.label, active: entry.link === activeScraperLink })),
+        (selectedLink) => {
+          attachNativePlayback(selectedLink);
+          scraperServerList.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', scraperLinks[i]?.link === selectedLink));
+        }
+      );
+    };
+
+    // Only wired from hls.js's real in-stream audio tracks (multi-audio
+    // HLS/DASH manifests) - never from the separate per-language scraper
+    // links, which are discrete URLs rather than tracks within one stream.
+    const syncAudioMenu = () => {
+      if (!arkPlayer || !hls || !hls.audioTracks?.length || hls.audioTracks.length < 2) {
+        arkPlayer?.setAudioTracks(null, null);
+        return;
+      }
+      arkPlayer.setAudioTracks(
+        hls.audioTracks.map((track, index) => ({
+          index, label: track.name || track.lang || `Track ${index + 1}`, active: index === hls.audioTrack,
+        })),
+        (index) => { hls.audioTrack = index; syncAudioMenu(); }
+      );
+    };
+
     /* Wraps/unwraps the *currently loaded* video with whichever skin is
        selected, without touching hls/dash/src/tracks at all - this is what
        the skin-toggle button calls, so switching players is instant and
@@ -648,6 +679,8 @@ async function renderPlayer(mediaType, id) {
           };
           selectLevel(hls ? hls.currentLevel : -1);
         }
+        syncServerMenu();
+        syncAudioMenu();
       } else if (playerSkin === 'plyr') {
         const options = { captions: { active: true } };
         if (cachedLevels.length > 1) {
@@ -705,6 +738,8 @@ async function renderPlayer(mediaType, id) {
           }
           applySkin();
         });
+        hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudioMenu);
+        hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, syncAudioMenu);
         hls.loadSource(link.url);
         hls.attachMedia(video);
       } else {
@@ -736,20 +771,25 @@ async function renderPlayer(mediaType, id) {
       scraperPanel.classList.remove('hidden');
       scraperNote.textContent = 'Fetching streams…';
       scraperServerList.innerHTML = '';
+      scraperLinks = [];
       try {
         await StreamGate.fetchScraperStream({
           type: mediaType, tmdbId: id, season, episode,
           onResult: ({ links }) => {
             if (!links?.length) return;
             links.forEach(link => {
-              const button = el(`<button class="chip ${scraperServerList.children.length === 0 ? 'active' : ''}">${escapeHtml(link.providerName)} · ${escapeHtml(link.server || 'Server')}${link.quality ? ` · ${escapeHtml(link.quality)}` : ''}</button>`);
+              const label = `${escapeHtml(link.providerName)} · ${escapeHtml(link.server || 'Server')}${link.quality ? ` · ${escapeHtml(link.quality)}` : ''}`;
+              const button = el(`<button class="chip ${scraperServerList.children.length === 0 ? 'active' : ''}">${label}</button>`);
               button.addEventListener('click', () => {
                 attachNativePlayback(link);
                 scraperServerList.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button));
+                syncServerMenu();
               });
               scraperServerList.appendChild(button);
+              scraperLinks.push({ link, label });
               if (!activeScraperLink) attachNativePlayback(link);
             });
+            syncServerMenu();
           },
         });
         scraperNote.textContent = scraperServerList.children.length ? '' : 'No streams found for this title.';
@@ -777,6 +817,7 @@ async function renderPlayer(mediaType, id) {
       const wasScraperMode = Boolean(activeScraperLink);
       activeScraperLink = null;
       scraperServerList.innerHTML = '';
+      scraperLinks = [];
       scraperNote.textContent = '';
       if (wasScraperMode) {
         teardownNativePlayback();

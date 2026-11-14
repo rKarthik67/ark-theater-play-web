@@ -11,7 +11,15 @@ const PlayerSources = (() => {
     ['vidrift', 'VidRift', id => `https://embed.vidrift.net/embed/movie/${id}`, (id,s,e) => `https://embed.vidrift.net/embed/tv/${id}/${s}/${e}`],
     ['vidrock', 'VidRock', id => `https://vidrock.net/movie/${id}`, (id,s,e) => `https://vidrock.net/tv/${id}/${s}/${e}`],
     ['codeera', 'Codeera', id => `https://iembed.codeera.dev/embed/movie/${id}`, (id,s,e) => `https://iembed.codeera.dev/embed/tv/${id}/${s}/${e}`],
-    ['videasy', 'Videasy', id => `https://player.videasy.net/movie/${id}`, (id,s,e) => `https://player.videasy.net/tv/${id}/${s}/${e}`]
+    ['videasy', 'Videasy', id => `https://player.videasy.net/movie/${id}`, (id,s,e) => `https://player.videasy.net/tv/${id}/${s}/${e}`],
+    ['vidstuck', 'VidStuck', id => `https://vidstuck.cc/embed/movie/${id}`, (id,s,e) => `https://vidstuck.cc/embed/tv/${id}/${s}/${e}`],
+    ['vidy', 'Vidy', id => `https://www.vidy.st/movie/${id}`, (id,s,e) => `https://www.vidy.st/tv/${id}/${s}/${e}`],
+    ['atlantic', 'Atlantic', id => `https://atlantic.bz/embed/movie/${id}`, (id,s,e) => `https://atlantic.bz/embed/tv/${id}/${s}/${e}`],
+    ['vixsrc', 'VixSrc', id => `https://vixsrc.to/movie/${id}`, (id,s,e) => `https://vixsrc.to/tv/${id}/${s}/${e}`],
+    ['vidfast', 'VidFast', id => `https://vidfast.pro/movie/${id}`, (id,s,e) => `https://vidfast.pro/tv/${id}/${s}/${e}`],
+    ['vidzee', 'VidZee', id => `https://player.vidzee.wtf/embed/movie/${id}`, (id,s,e) => `https://player.vidzee.wtf/embed/tv/${id}/${s}/${e}`],
+    ['cinesrc', 'CineSrc', id => `https://cinesrc.st/embed/movie/${id}`, (id,s,e) => `https://cinesrc.st/embed/tv/${id}/${s}/${e}`],
+    ['vidnest', 'VidNest', id => `https://vidnest.fun/movie/${id}`, (id,s,e) => `https://vidnest.fun/tv/${id}/${s}/${e}`],
   ].map(([id, label, movie, tv]) => ({ id, label, movie, tv }));
   function url(sourceId, type, id, season = 1, episode = 1) {
     const source = list.find(item => item.id === sourceId) || list[0];

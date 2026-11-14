@@ -712,15 +712,64 @@ a.id-badge:hover { color: var(--gold-1); border-color: var(--gold-2); background
 .ark-volume:hover .ark-volume-slider, .ark-volume:focus-within .ark-volume-slider { width: 64px; opacity: 1; margin-left: 2px; }
 
 .ark-menu-host { position: relative; }
-.ark-flyout {
-  position: absolute; bottom: calc(100% + 10px); right: -6px; min-width: 160px;
-  background: rgba(16,16,18,.97); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
-  padding: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.5); backdrop-filter: blur(10px);
-  /* Some providers return 20+ subtitle languages - without this the menu
-     just overflowed past the video with no way to reach the rest. */
-  max-height: 280px; overflow-y: auto;
+.ark-sheet {
+  position: absolute; bottom: calc(100% + 10px); right: -6px; width: 300px;
+  background: rgba(16,16,18,.97); border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
+  padding: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.5); backdrop-filter: blur(10px);
+  max-height: 420px; overflow-y: auto; font: 500 12.5px 'DM Sans', var(--font-ui); color: #fff;
 }
-.ark-flyout.hidden { display: none; }
+.ark-sheet.hidden { display: none; }
+
+.ark-sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.ark-sheet-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px;
+  border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.04);
+  color: #fff; cursor: pointer; text-align: left;
+}
+.ark-sheet-card:hover { background: rgba(255,255,255,.09); }
+.ark-sheet-card.hidden { display: none; }
+.ark-sheet-card svg { width: 18px; height: 18px; fill: none; }
+.ark-sheet-card-label { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+.ark-sheet-card-value { font-size: 13px; font-weight: 700; }
+
+.ark-sheet-rows { display: flex; flex-direction: column; }
+.ark-sheet-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 4px; border: 0;
+  background: transparent; color: #fff; font: inherit; text-align: left; cursor: pointer;
+}
+.ark-sheet-row:hover { background: rgba(255,255,255,.06); border-radius: 8px; }
+.ark-sheet-row.hidden, .ark-sheet-row-toggle.hidden { display: none; }
+.ark-sheet-row svg { width: 17px; height: 17px; fill: none; flex-shrink: 0; }
+.ark-sheet-row span:first-of-type { flex: 1; }
+.ark-sheet-row-value { color: rgba(255,255,255,.45); }
+.ark-sheet-row > svg:last-child { width: 14px; height: 14px; color: rgba(255,255,255,.35); }
+.ark-sheet-divider { height: 1px; background: rgba(255,255,255,.1); margin: 4px 0; }
+.ark-sheet-divider.hidden { display: none; }
+
+.ark-sheet-row-toggle { display: flex; align-items: center; gap: 12px; padding: 10px 4px; }
+.ark-sheet-row-toggle svg { width: 17px; height: 17px; fill: none; flex-shrink: 0; }
+.ark-sheet-row-toggle span { flex: 1; }
+.ark-toggle { position: relative; display: inline-block; }
+.ark-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ark-toggle-track {
+  display: block; width: 38px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.2);
+  position: relative; transition: background .18s ease;
+}
+.ark-toggle input:checked ~ .ark-toggle-track { background: var(--ark-red); }
+.ark-toggle-thumb {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform .18s ease;
+}
+.ark-toggle input:checked ~ .ark-toggle-track .ark-toggle-thumb { transform: translateX(16px); }
+
+.ark-sheet-sub.hidden { display: none; }
+.ark-sheet-subhead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ark-sheet-back { width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: #fff; display: grid; place-items: center; cursor: pointer; }
+.ark-sheet-back:hover { background: rgba(255,255,255,.1); }
+.ark-sheet-back svg { width: 18px; height: 18px; fill: none; }
+.ark-sheet-subtitle { font-size: 13.5px; font-weight: 700; }
+.ark-sheet-sublist { display: flex; flex-direction: column; }
+
 .ark-flyout-heading { padding: 8px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.4); }
 .ark-flyout-search { padding: 2px 6px 6px; }
 .ark-flyout-search input {

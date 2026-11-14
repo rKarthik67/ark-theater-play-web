@@ -21,6 +21,14 @@ const ArkPlayer = (() => {
     fullscreenEnter: '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 9h-3v2h5v-5h-2zM14 5v2h3v3h2V5z"/></svg>',
     fullscreenExit: '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+    hd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 9v6M7 12h2M9 9v6"/><path d="M13 9v6h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"/></svg>',
+    layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>',
+    captions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 13.5a1.8 1.8 0 1 1 0-3 1.6 1.6 0 0 1 1.3.6M14 13.5a1.8 1.8 0 1 1 0-3 1.6 1.6 0 0 1 1.3.6"/></svg>',
+    music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 14.7A8.5 8.5 0 1 1 9.3 3.6a7 7 0 0 0 11.1 11.1Z"/></svg>',
+    speedo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 19a9 9 0 1 1 14.8 0"/><path d="M12 13 16 8"/><circle cx="12" cy="13" r="1" fill="currentColor" stroke="none"/></svg>',
+    textSize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h12v2M10 5v14M8 19h4"/><path d="M15 13h5M17.5 13v6"/></svg>',
+    chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
   };
 
   const SEEK_SECONDS = 10;
@@ -129,8 +137,28 @@ const ArkPlayer = (() => {
               <input type="range" class="ark-volume-slider" min="0" max="1" step="0.05" value="1" aria-label="Volume">
             </div>
             <div class="ark-menu-host">
-              <button type="button" class="ark-icon-btn ark-settings hidden" aria-label="Settings">${icon.gear}</button>
-              <div class="ark-flyout ark-flyout-settings hidden"></div>
+              <button type="button" class="ark-icon-btn ark-settings" aria-label="Settings">${icon.gear}</button>
+              <div class="ark-sheet hidden">
+                <div class="ark-sheet-main">
+                  <div class="ark-sheet-grid">
+                    <button type="button" class="ark-sheet-card hidden" data-cat="quality">${icon.hd}<span class="ark-sheet-card-label">Quality</span><span class="ark-sheet-card-value">Auto</span></button>
+                    <button type="button" class="ark-sheet-card hidden" data-cat="server">${icon.layers}<span class="ark-sheet-card-label">Server</span><span class="ark-sheet-card-value">—</span></button>
+                    <button type="button" class="ark-sheet-card hidden" data-cat="subtitles">${icon.captions}<span class="ark-sheet-card-label">Subtitles</span><span class="ark-sheet-card-value">Off</span></button>
+                    <button type="button" class="ark-sheet-card hidden" data-cat="audio">${icon.music}<span class="ark-sheet-card-label">Audio</span><span class="ark-sheet-card-value">—</span></button>
+                  </div>
+                  <div class="ark-sheet-rows">
+                    <button type="button" class="ark-sheet-row" data-cat="sleep">${icon.moon}<span>Sleep Timer</span><span class="ark-sheet-row-value"></span>${icon.chevronRight}</button>
+                    <div class="ark-sheet-divider hidden"></div>
+                    <div class="ark-sheet-row ark-sheet-row-toggle hidden">${icon.captions}<span>Enable Subtitles</span><label class="ark-toggle"><input type="checkbox" class="ark-subtitle-toggle" checked><span class="ark-toggle-track"><span class="ark-toggle-thumb"></span></span></label></div>
+                    <button type="button" class="ark-sheet-row" data-cat="playback">${icon.speedo}<span>Playback Speed</span><span class="ark-sheet-row-value">Normal</span>${icon.chevronRight}</button>
+                    <button type="button" class="ark-sheet-row hidden" data-cat="subtitleStyle">${icon.textSize}<span>Subtitle Settings</span>${icon.chevronRight}</button>
+                  </div>
+                </div>
+                <div class="ark-sheet-sub hidden">
+                  <div class="ark-sheet-subhead"><button type="button" class="ark-sheet-back">${icon.back}</button><span class="ark-sheet-subtitle"></span></div>
+                  <div class="ark-sheet-sublist"></div>
+                </div>
+              </div>
             </div>
             <button type="button" class="ark-icon-btn ark-fullscreen" aria-label="Fullscreen">${icon.fullscreenEnter}</button>
           </div>
@@ -158,7 +186,22 @@ const ArkPlayer = (() => {
     const scrubPlayed = wrap.querySelector('.ark-scrub-played');
     const scrubThumb = wrap.querySelector('.ark-scrub-thumb');
     const settingsBtn = wrap.querySelector('.ark-settings');
-    const settingsFlyout = wrap.querySelector('.ark-flyout-settings');
+    const sheet = wrap.querySelector('.ark-sheet');
+    const sheetMain = wrap.querySelector('.ark-sheet-main');
+    const sheetSub = wrap.querySelector('.ark-sheet-sub');
+    const sheetSubtitle = wrap.querySelector('.ark-sheet-subtitle');
+    const sheetSublist = wrap.querySelector('.ark-sheet-sublist');
+    const sheetBack = wrap.querySelector('.ark-sheet-back');
+    const qualityCard = wrap.querySelector('.ark-sheet-card[data-cat="quality"]');
+    const serverCard = wrap.querySelector('.ark-sheet-card[data-cat="server"]');
+    const subtitlesCard = wrap.querySelector('.ark-sheet-card[data-cat="subtitles"]');
+    const audioCard = wrap.querySelector('.ark-sheet-card[data-cat="audio"]');
+    const sleepRow = wrap.querySelector('.ark-sheet-row[data-cat="sleep"]');
+    const playbackRow = wrap.querySelector('.ark-sheet-row[data-cat="playback"]');
+    const subtitleStyleRow = wrap.querySelector('.ark-sheet-row[data-cat="subtitleStyle"]');
+    const subtitleToggleRow = wrap.querySelector('.ark-sheet-row-toggle');
+    const subtitleToggleInput = wrap.querySelector('.ark-subtitle-toggle');
+    const sheetDivider = wrap.querySelector('.ark-sheet-divider');
     const fullscreenBtn = wrap.querySelector('.ark-fullscreen');
 
     if (backBtn) {
@@ -184,7 +227,7 @@ const ArkPlayer = (() => {
       });
     }
 
-    function closeFlyouts() { settingsFlyout.classList.add('hidden'); }
+    function closeSheet() { sheet.classList.add('hidden'); }
 
     function flashCenterIcon(name) {
       centerBtn.innerHTML = icon[name];
@@ -304,24 +347,29 @@ const ArkPlayer = (() => {
       fullscreenBtn.innerHTML = document.fullscreenElement ? icon.fullscreenExit : icon.fullscreenEnter;
     });
 
+    function openSheet() {
+      sheet.classList.remove('hidden');
+      sheetSub.classList.add('hidden');
+      sheetMain.classList.remove('hidden');
+    }
     settingsBtn.addEventListener('click', (event) => {
       event.stopPropagation();
-      const willOpen = settingsFlyout.classList.contains('hidden');
-      closeFlyouts();
-      settingsFlyout.classList.toggle('hidden', !willOpen);
+      const willOpen = sheet.classList.contains('hidden');
+      closeSheet();
+      if (willOpen) openSheet();
     });
     wrap.addEventListener('click', (event) => {
-      if (!event.target.closest('.ark-menu-host')) closeFlyouts();
+      if (!event.target.closest('.ark-menu-host')) closeSheet();
     });
 
     // The bar fades out after a few idle seconds while playing, same as any
-    // real player - but never while a flyout menu is open or it's paused.
+    // real player - but never while the settings sheet is open or it's paused.
     let idleTimer = null;
     function showBar() {
       wrap.classList.add('show-controls');
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-        if (!video.paused && settingsFlyout.classList.contains('hidden')) {
+        if (!video.paused && sheet.classList.contains('hidden')) {
           wrap.classList.remove('show-controls');
         }
       }, 2800);
@@ -332,17 +380,42 @@ const ArkPlayer = (() => {
 
     let currentSubtitles = null; let currentSubtitleSelect = null;
     let currentLevels = null; let currentLevelSelect = null;
+    let currentServers = null; let currentServerSelect = null;
+    let currentAudioTracks = null; let currentAudioSelect = null;
+    let lastSubtitleFile = null;
+    let sleepKey = 'off'; let sleepTimeoutId = null;
+    let playbackRate = 1;
+    let cueSize = 'medium'; let cueSizeStyleEl = null;
+
+    function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
 
     function buildRow(label, active, onClick) {
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'ark-flyout-item';
       row.innerHTML = `<span>${label}</span>${active ? icon.check : ''}`;
-      row.addEventListener('click', () => { onClick(); closeFlyouts(); });
+      row.addEventListener('click', () => { onClick(); closeSheet(); });
       return row;
     }
+
+    // Drills from the 2x2 card grid / row list down into a single-purpose
+    // subpanel (mirrors watched.cx's own settings sheet navigation), rather
+    // than a flat flyout - the back chevron returns to the grid.
+    function showSub(title, builder) {
+      sheetSubtitle.textContent = title;
+      sheetSublist.innerHTML = '';
+      builder(sheetSublist);
+      sheetMain.classList.add('hidden');
+      sheetSub.classList.remove('hidden');
+    }
+    function backToMain() {
+      sheetSub.classList.add('hidden');
+      sheetMain.classList.remove('hidden');
+    }
+    sheetBack.addEventListener('click', backToMain);
+
     // Filters the Subtitles rows in place as the viewer types, rather than
-    // rebuilding the whole flyout - some providers return 20+ languages, so
+    // rebuilding the whole list - some providers return 20+ languages, so
     // a plain scrolling list is the slow way to find e.g. "French".
     function renderSubtitleRows(container, query) {
       container.innerHTML = '';
@@ -354,45 +427,156 @@ const ArkPlayer = (() => {
       matches.forEach((subtitle) => container.appendChild(buildRow(subtitle.label || 'Unknown', Boolean(subtitle.active), () => currentSubtitleSelect(subtitle.file))));
       if (!container.children.length) container.appendChild(el('<div class="ark-flyout-empty">No matching language</div>'));
     }
-    function renderSettingsMenu() {
-      settingsFlyout.innerHTML = '';
-      let any = false;
-      if (currentLevels && currentLevels.length > 1) {
-        any = true;
-        settingsFlyout.appendChild(el('<div class="ark-flyout-heading">Quality</div>'));
-        settingsFlyout.appendChild(buildRow('Auto', currentLevels.every((l) => !l.active), () => currentLevelSelect(-1)));
-        currentLevels.forEach((level) => settingsFlyout.appendChild(buildRow(level.label, Boolean(level.active), () => currentLevelSelect(level.index))));
-      }
-      if (currentSubtitles && currentSubtitles.length) {
-        any = true;
-        settingsFlyout.appendChild(el('<div class="ark-flyout-heading">Subtitles</div>'));
-        const rows = el('<div class="ark-flyout-rows"></div>');
+    function openSubtitlesSub() {
+      showSub('Subtitles', (container) => {
         if (currentSubtitles.length > 5) {
           const searchWrap = el('<div class="ark-flyout-search"><input type="text" placeholder="Search language…"></div>');
-          settingsFlyout.appendChild(searchWrap);
+          container.appendChild(searchWrap);
+          const rows = el('<div class="ark-flyout-rows"></div>');
+          container.appendChild(rows);
           searchWrap.querySelector('input').addEventListener('input', (event) => renderSubtitleRows(rows, event.target.value));
           searchWrap.querySelector('input').addEventListener('click', (event) => event.stopPropagation());
+          renderSubtitleRows(rows, '');
+        } else {
+          renderSubtitleRows(container, '');
         }
-        settingsFlyout.appendChild(rows);
-        renderSubtitleRows(rows, '');
-      }
-      settingsBtn.classList.toggle('hidden', !any);
+      });
     }
-    function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
+    function openQualitySub() {
+      showSub('Quality', (container) => {
+        container.appendChild(buildRow('Auto', currentLevels.every((l) => !l.active), () => currentLevelSelect(-1)));
+        currentLevels.forEach((level) => container.appendChild(buildRow(level.label, Boolean(level.active), () => currentLevelSelect(level.index))));
+      });
+    }
+    function openServerSub() {
+      showSub('Server', (container) => {
+        currentServers.forEach((server) => container.appendChild(buildRow(server.label, Boolean(server.active), () => currentServerSelect(server.id))));
+      });
+    }
+    function openAudioSub() {
+      showSub('Audio', (container) => {
+        currentAudioTracks.forEach((track) => container.appendChild(buildRow(track.label, Boolean(track.active), () => currentAudioSelect(track.index))));
+      });
+    }
+
+    const SLEEP_OPTIONS = [['off', 'Off', null], ['15', '15 min', 15], ['30', '30 min', 30], ['45', '45 min', 45], ['60', '60 min', 60]];
+    function setSleepTimer(key, minutes) {
+      sleepKey = key;
+      clearTimeout(sleepTimeoutId);
+      sleepTimeoutId = minutes ? setTimeout(() => video.pause(), minutes * 60 * 1000) : null;
+      const opt = SLEEP_OPTIONS.find(([k]) => k === key);
+      sleepRow.querySelector('.ark-sheet-row-value').textContent = key === 'off' ? '' : opt[1];
+    }
+    function openSleepSub() {
+      showSub('Sleep Timer', (container) => {
+        SLEEP_OPTIONS.forEach(([key, label, minutes]) => container.appendChild(buildRow(label, sleepKey === key, () => setSleepTimer(key, minutes))));
+      });
+    }
+    sleepRow.addEventListener('click', openSleepSub);
+
+    const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    const speedLabel = (rate) => (rate === 1 ? 'Normal' : `${rate}×`);
+    function setPlaybackRate(rate) {
+      playbackRate = rate;
+      video.playbackRate = rate;
+      playbackRow.querySelector('.ark-sheet-row-value').textContent = speedLabel(rate);
+    }
+    function openPlaybackSub() {
+      showSub('Playback Speed', (container) => {
+        SPEED_OPTIONS.forEach((rate) => container.appendChild(buildRow(speedLabel(rate), rate === playbackRate, () => setPlaybackRate(rate))));
+      });
+    }
+    playbackRow.addEventListener('click', openPlaybackSub);
+
+    // Cue size is applied via a dynamically injected <style> targeting the
+    // video's own ::cue pseudo-element - a real, standards-based way to
+    // resize WebVTT captions, not a faked control.
+    const CUE_SIZE_OPTIONS = [['small', 'Small', '1.6vw'], ['medium', 'Medium', '2.4vw'], ['large', 'Large', '3.2vw']];
+    function setCueSize(key) {
+      cueSize = key;
+      const opt = CUE_SIZE_OPTIONS.find(([k]) => k === key);
+      if (!cueSizeStyleEl) { cueSizeStyleEl = document.createElement('style'); wrap.appendChild(cueSizeStyleEl); }
+      cueSizeStyleEl.textContent = `.ark-player-video::cue { font-size: ${opt[2]}; }`;
+    }
+    function openSubtitleStyleSub() {
+      showSub('Subtitle Settings', (container) => {
+        CUE_SIZE_OPTIONS.forEach(([key, label]) => container.appendChild(buildRow(label, cueSize === key, () => setCueSize(key))));
+      });
+    }
+    if (subtitleStyleRow) subtitleStyleRow.addEventListener('click', openSubtitleStyleSub);
+
+    if (qualityCard) qualityCard.addEventListener('click', openQualitySub);
+    if (serverCard) serverCard.addEventListener('click', openServerSub);
+    if (subtitlesCard) subtitlesCard.addEventListener('click', openSubtitlesSub);
+    if (audioCard) audioCard.addEventListener('click', openAudioSub);
+
+    subtitleToggleInput.addEventListener('change', () => {
+      if (!currentSubtitleSelect) return;
+      if (subtitleToggleInput.checked) {
+        currentSubtitleSelect(lastSubtitleFile);
+      } else {
+        const active = currentSubtitles?.find((s) => s.active);
+        if (active) lastSubtitleFile = active.file;
+        currentSubtitleSelect(null);
+      }
+    });
+
+    function syncSubtitleUI() {
+      const has = Boolean(currentSubtitles && currentSubtitles.length);
+      subtitlesCard.classList.toggle('hidden', !has);
+      subtitleToggleRow.classList.toggle('hidden', !has);
+      sheetDivider.classList.toggle('hidden', !has);
+      if (subtitleStyleRow) subtitleStyleRow.classList.toggle('hidden', !has);
+      if (!has) return;
+      const active = currentSubtitles.find((s) => s.active);
+      subtitlesCard.querySelector('.ark-sheet-card-value').textContent = active ? (active.label || 'On') : 'Off';
+      subtitleToggleInput.checked = Boolean(active);
+      if (active) lastSubtitleFile = active.file;
+    }
 
     function setSubtitles(subtitles, onSelect) {
       currentSubtitles = subtitles?.length ? subtitles : null;
       currentSubtitleSelect = onSelect;
-      renderSettingsMenu();
+      syncSubtitleUI();
     }
 
     function setQualityLevels(levels, onSelect) {
       currentLevels = (levels && levels.length > 1) ? levels : null;
       currentLevelSelect = onSelect;
-      renderSettingsMenu();
+      qualityCard.classList.toggle('hidden', !currentLevels);
+      if (currentLevels) {
+        const active = currentLevels.find((l) => l.active);
+        qualityCard.querySelector('.ark-sheet-card-value').textContent = active ? active.label : 'Auto';
+      }
+    }
+
+    // Server list mirrors the external scraper-source chips - picking one
+    // here runs the exact same callback as clicking that chip would.
+    function setServers(servers, onSelect) {
+      currentServers = servers?.length ? servers : null;
+      currentServerSelect = onSelect;
+      serverCard.classList.toggle('hidden', !currentServers);
+      if (currentServers) {
+        const active = currentServers.find((s) => s.active);
+        serverCard.querySelector('.ark-sheet-card-value').textContent = active ? active.label : currentServers[0].label;
+      }
+    }
+
+    // Only wired from hls.js's real in-stream audio track list - never from
+    // our separate per-language scraper links, which are discrete URLs and
+    // would misrepresent "Audio" as something it isn't.
+    function setAudioTracks(tracks, onSelect) {
+      currentAudioTracks = (tracks && tracks.length > 1) ? tracks : null;
+      currentAudioSelect = onSelect;
+      audioCard.classList.toggle('hidden', !currentAudioTracks);
+      if (currentAudioTracks) {
+        const active = currentAudioTracks.find((t) => t.active);
+        audioCard.querySelector('.ark-sheet-card-value').textContent = active ? active.label : currentAudioTracks[0].label;
+      }
     }
 
     function destroy() {
+      clearTimeout(sleepTimeoutId);
       wrap.parentNode.insertBefore(video, wrap);
       video.classList.remove('ark-player-video');
       video.controls = true;
@@ -400,7 +584,7 @@ const ArkPlayer = (() => {
     }
 
     muteBtn.innerHTML = icon.volumeHigh;
-    return { el: wrap, setSubtitles, setQualityLevels, destroy };
+    return { el: wrap, setSubtitles, setQualityLevels, setServers, setAudioTracks, destroy };
   }
 
   return { attach };
