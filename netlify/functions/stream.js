@@ -46,6 +46,11 @@ exports.handler = async (event) => {
     url.searchParams.set('episode', episode);
   }
   if (provider) url.searchParams.set('provider', provider);
+  // ARK Play is a browser client. Browser media APIs cannot attach protected
+  // hotlink headers (User-Agent, Referer, Origin), so the scraper returns a
+  // signed media-proxy URL only for this request mode. Native ARKTheater
+  // never sends this flag and continues to receive direct streams.
+  url.searchParams.set('client', 'browser');
 
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
