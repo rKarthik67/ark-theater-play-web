@@ -365,13 +365,86 @@ const ArkPlayer = (() => {
       if (pendingRatio !== null && Number.isFinite(video.duration)) video.currentTime = pendingRatio * video.duration;
       pendingRatio = null;
     });
+    // iPad Home-Screen apps run in standalone WebKit. Unlike Safari's page
+    // tab, that context can reject the document Fullscreen API even though
+    // the native video player is available. Classic works there because its
+    // built-in controls ask the <video> itself to go fullscreen. Prefer the
+    // same native path for Apple touch devices, then use document fullscreen
+    // elsewhere, with a CSS viewport fallback for standalone WebKit.
+    const isAppleTouch = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isNativeVideoFullscreen = () => video.webkitDisplayingFullscreen === true;
+    const isPseudoFullscreen = () => wrap.classList.contains('ark-pseudo-fullscreen');
+    const isFullscreen = () => Boolean(
+      document.fullscreenElement
+      || document.webkitFullscreenElement
+      || isNativeVideoFullscreen()
+      || isPseudoFullscreen()
+    );
+    const updateFullscreenButton = () => {
+      fullscreenBtn.innerHTML = isFullscreen() ? icon.fullscreenExit : icon.fullscreenEnter;
+      fullscreenBtn.setAttribute('aria-label', isFullscreen() ? 'Exit fullscreen' : 'Fullscreen');
+    };
+    const enterPseudoFullscreen = () => {
+      wrap.classList.add('ark-pseudo-fullscreen');
+      document.documentElement.classList.add('ark-player-fullscreen-active');
+      updateFullscreenButton();
+    };
+    const exitPseudoFullscreen = () => {
+      wrap.classList.remove('ark-pseudo-fullscreen');
+      document.documentElement.classList.remove('ark-player-fullscreen-active');
+      updateFullscreenButton();
+    };
+    const enterFullscreen = async () => {
+      if (isAppleTouch && typeof video.webkitEnterFullscreen === 'function') {
+        try {
+          // This call must stay directly inside the click handler's user
+          // gesture chain or iPadOS will reject it.
+          video.webkitEnterFullscreen();
+          return;
+        } catch (_) {
+          // Continue to the document/CSS fallbacks below.
+        }
+      }
+      try {
+        const request = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+        if (request) {
+          await request.call(wrap);
+          return;
+        }
+      } catch (_) {
+        // Standalone WebKit commonly reaches this path.
+      }
+      enterPseudoFullscreen();
+    };
+    const exitFullscreen = async () => {
+      if (isPseudoFullscreen()) {
+        exitPseudoFullscreen();
+        return;
+      }
+      if (isNativeVideoFullscreen() && typeof video.webkitExitFullscreen === 'function') {
+        try {
+          video.webkitExitFullscreen();
+          return;
+        } catch (_) {
+          // The native controls can always dismiss the iPad video player.
+        }
+      }
+      try {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) await exit.call(document);
+      } catch (_) {
+        // No further action is required when the browser already exited.
+      }
+    };
     fullscreenBtn.addEventListener('click', () => {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else wrap.requestFullscreen?.();
+      if (isFullscreen()) void exitFullscreen();
+      else void enterFullscreen();
     });
-    document.addEventListener('fullscreenchange', () => {
-      fullscreenBtn.innerHTML = document.fullscreenElement ? icon.fullscreenExit : icon.fullscreenEnter;
-    });
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    video.addEventListener('webkitbeginfullscreen', updateFullscreenButton);
+    video.addEventListener('webkitendfullscreen', updateFullscreenButton);
 
     function openSheet() {
       sheet.classList.remove('hidden');
@@ -624,6 +697,11 @@ const ArkPlayer = (() => {
     function destroy() {
       clearTimeout(sleepTimeoutId);
       document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('fullscreenchange', updateFullscreenButton);
+      document.removeEventListener('webkitfullscreenchange', updateFullscreenButton);
+      video.removeEventListener('webkitbeginfullscreen', updateFullscreenButton);
+      video.removeEventListener('webkitendfullscreen', updateFullscreenButton);
+      exitPseudoFullscreen();
       wrap.parentNode.insertBefore(video, wrap);
       video.classList.remove('ark-player-video');
       video.controls = true;
