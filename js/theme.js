@@ -3,6 +3,7 @@
    separate from settings_player_accent_color which colors the video player UI). */
 
 const ARK_ACCENTS = [
+  { id: 'netflix', name: 'Netflix Red', c1: '#ff1f2d', c2: '#e50914', c3: '#b20710', c4: '#7a0509' },
   { id: 'gold', name: 'Gold', c1: '#ffd27a', c2: '#ffb347', c3: '#e8891a', c4: '#8a4a12' },
   { id: 'crimson', name: 'Crimson', c1: '#ffc2c2', c2: '#ff7a7a', c3: '#e23b3b', c4: '#7a1212' },
   { id: 'emerald', name: 'Emerald', c1: '#c8f7da', c2: '#58e0a0', c3: '#1f9e5a', c4: '#0b5c34' },

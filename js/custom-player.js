@@ -29,6 +29,7 @@ const ArkPlayer = (() => {
     speedo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 19a9 9 0 1 1 14.8 0"/><path d="M12 13 16 8"/><circle cx="12" cy="13" r="1" fill="currentColor" stroke="none"/></svg>',
     textSize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h12v2M10 5v14M8 19h4"/><path d="M15 13h5M17.5 13v6"/></svg>',
     chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
   };
 
   const SEEK_SECONDS = 10;
@@ -151,6 +152,7 @@ const ArkPlayer = (() => {
                     <div class="ark-sheet-divider hidden"></div>
                     <div class="ark-sheet-row ark-sheet-row-toggle hidden">${icon.captions}<span>Enable Subtitles</span><label class="ark-toggle"><input type="checkbox" class="ark-subtitle-toggle" checked><span class="ark-toggle-track"><span class="ark-toggle-thumb"></span></span></label></div>
                     <button type="button" class="ark-sheet-row" data-cat="playback">${icon.speedo}<span>Playback Speed</span><span class="ark-sheet-row-value">Normal</span>${icon.chevronRight}</button>
+                    <button type="button" class="ark-sheet-row hidden" data-cat="subtitleSearch">${icon.search}<span>Search Subtitles</span>${icon.chevronRight}</button>
                     <button type="button" class="ark-sheet-row hidden" data-cat="subtitleStyle">${icon.textSize}<span>Subtitle Settings</span>${icon.chevronRight}</button>
                   </div>
                 </div>
@@ -199,6 +201,7 @@ const ArkPlayer = (() => {
     const audioCard = wrap.querySelector('.ark-sheet-card[data-cat="audio"]');
     const sleepRow = wrap.querySelector('.ark-sheet-row[data-cat="sleep"]');
     const playbackRow = wrap.querySelector('.ark-sheet-row[data-cat="playback"]');
+    const subtitleSearchRow = wrap.querySelector('.ark-sheet-row[data-cat="subtitleSearch"]');
     const subtitleStyleRow = wrap.querySelector('.ark-sheet-row[data-cat="subtitleStyle"]');
     const subtitleToggleRow = wrap.querySelector('.ark-sheet-row-toggle');
     const subtitleToggleInput = wrap.querySelector('.ark-subtitle-toggle');
@@ -481,6 +484,7 @@ const ArkPlayer = (() => {
     let currentLevels = null; let currentLevelSelect = null;
     let currentServers = null; let currentServerSelect = null;
     let currentAudioTracks = null; let currentAudioSelect = null;
+    let currentSubtitleSearchLoad = null; let currentSubtitleSearchSelect = null;
     let lastSubtitleFile = null;
     let sleepKey = 'off'; let sleepTimeoutId = null;
     let playbackRate = 1;
@@ -552,6 +556,47 @@ const ArkPlayer = (() => {
         }
       });
     }
+    // Two-line row (label + source/downloads) for a Wyzie search result -
+    // buildRow's single text line doesn't fit that, so this is its own
+    // small variant rather than overloading buildRow with optional args.
+    function buildSubtitleResultRow(sub, onClick) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'ark-flyout-item ark-flyout-item-sub';
+      const meta = sub.downloadCount > 0 ? `${sub.source} · ${sub.downloadCount} downloads` : sub.source;
+      row.innerHTML = `<span class="ark-flyout-item-main"><span>${sub.display}</span><small>${meta}</small></span>`;
+      row.addEventListener('click', () => { onClick(); closeSheet(); });
+      return row;
+    }
+    // Own loading/error/empty/list states (unlike the other sub-pages,
+    // which render synchronously from data the caller already has) since
+    // the search only actually runs once this sheet opens.
+    function openSubtitleSearchSub() {
+      if (!currentSubtitleSearchLoad) return;
+      showSub('Search Subtitles', (container) => {
+        container.appendChild(el('<div class="ark-flyout-empty">Searching…</div>'));
+      });
+      currentSubtitleSearchLoad().then(
+        (results) => {
+          if (sheetSubtitle.textContent !== 'Search Subtitles') return;
+          sheetSublist.innerHTML = '';
+          if (!results.length) {
+            sheetSublist.appendChild(el('<div class="ark-flyout-empty">No external subtitles found for this title.</div>'));
+            return;
+          }
+          results.forEach((sub) => sheetSublist.appendChild(
+            buildSubtitleResultRow(sub, () => currentSubtitleSearchSelect(sub))
+          ));
+        },
+        (error) => {
+          if (sheetSubtitle.textContent !== 'Search Subtitles') return;
+          sheetSublist.innerHTML = '';
+          sheetSublist.appendChild(el(`<div class="ark-flyout-empty">Subtitle search failed: ${error?.message || error}</div>`));
+        }
+      );
+    }
+    if (subtitleSearchRow) subtitleSearchRow.addEventListener('click', openSubtitleSearchSub);
+
     function openQualitySub() {
       showSub('Quality', (container) => {
         container.appendChild(buildRow('Auto', currentLevels.every((l) => !l.active), () => currentLevelSelect(-1)));
@@ -694,6 +739,16 @@ const ArkPlayer = (() => {
       }
     }
 
+    // Independent of setSubtitles above - loadFn searches Wyzie Subs for
+    // every candidate subtitle for this title (not just what the current
+    // stream happens to embed), onSelect attaches the one the viewer picks.
+    // Mirrors ARKTheater's own "Search Subtitles" sheet.
+    function setSubtitleSearch(loadFn, onSelect) {
+      currentSubtitleSearchLoad = loadFn || null;
+      currentSubtitleSearchSelect = onSelect || null;
+      if (subtitleSearchRow) subtitleSearchRow.classList.toggle('hidden', !currentSubtitleSearchLoad);
+    }
+
     function destroy() {
       clearTimeout(sleepTimeoutId);
       document.removeEventListener('keydown', handleKeydown);
@@ -709,7 +764,7 @@ const ArkPlayer = (() => {
     }
 
     muteBtn.innerHTML = icon.volumeHigh;
-    return { el: wrap, setSubtitles, setQualityLevels, setServers, setAudioTracks, destroy };
+    return { el: wrap, setSubtitles, setQualityLevels, setServers, setAudioTracks, setSubtitleSearch, destroy };
   }
 
   return { attach };

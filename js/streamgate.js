@@ -121,5 +121,27 @@ const StreamGate = (() => {
     return { links };
   }
 
-  return { isUnlocked, onUnlockedChange, unlock, lock, fetchScraperStream };
+  /* Independent of fetchScraperStream - searches Wyzie Subs for every
+     candidate subtitle for this title, rather than whatever one provider's
+     stream happened to embed. Mirrors ARKTheater's own "Search Subtitles"
+     sheet (ExternalSubtitleService), minus that app's local-key pattern -
+     here the key lives only in ARKVideoScrapper's own env, behind the same
+     signed-token gate as fetchScraperStream. */
+  async function fetchSubtitleSearch({ tmdbId, season, episode }) {
+    const token = readStoredToken();
+    if (!token) throw new Error('Locked');
+    const params = new URLSearchParams({ tmdbId: String(tmdbId), token });
+    if (season !== undefined && episode !== undefined) {
+      params.set('season', String(season));
+      params.set('episode', String(episode));
+    }
+    const response = await fetch(`/.netlify/functions/subtitles?${params.toString()}`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.success === false) {
+      throw new Error(body.error || 'Subtitle search failed');
+    }
+    return body.subtitles || [];
+  }
+
+  return { isUnlocked, onUnlockedChange, unlock, lock, fetchScraperStream, fetchSubtitleSearch };
 })();

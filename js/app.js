@@ -624,6 +624,22 @@ async function renderPlayer(mediaType, id) {
       );
     };
 
+    // Adds a Wyzie Subs search result (see ArkPlayer's "Search Subtitles"
+    // sheet) as a new <track>, mirroring ARKTheater's own
+    // _applyExternalSubtitle - appended after any subtitles the stream link
+    // already embedded, then selected immediately so the viewer sees it
+    // applied without a second click.
+    const addExternalSubtitle = (sub) => {
+      if (!activeScraperLink) return;
+      const trackEl = document.createElement('track');
+      trackEl.kind = 'subtitles';
+      trackEl.src = sub.url;
+      trackEl.label = sub.display;
+      video.appendChild(trackEl);
+      activeScraperLink.subtitles = [...(activeScraperLink.subtitles || []), { file: sub.url, label: sub.display }];
+      selectSubtitleIndex(activeScraperLink, video.textTracks.length - 1);
+    };
+
     // Mirrors the external "Scraper Sources" chip list into ArkPlayer's own
     // Server card - selecting one there runs the same attachNativePlayback
     // call a chip click would, and the chip row's active state stays in sync.
@@ -681,6 +697,10 @@ async function renderPlayer(mediaType, id) {
         }
         syncServerMenu();
         syncAudioMenu();
+        arkPlayer.setSubtitleSearch(
+          () => StreamGate.fetchSubtitleSearch({ tmdbId: id, season: mediaType === 'tv' ? season : undefined, episode: mediaType === 'tv' ? episode : undefined }),
+          addExternalSubtitle
+        );
       } else if (playerSkin === 'plyr') {
         const options = { captions: { active: true } };
         if (cachedLevels.length > 1) {
@@ -1394,7 +1414,7 @@ function renderSettings() {
     </div>
   `);
   const accentGrid = accentSection.querySelector('#accent-grid');
-  const currentAccent = localStorage.getItem('ark_accent') || 'gold';
+  const currentAccent = localStorage.getItem('ark_accent') || 'netflix';
   ARK_ACCENTS.forEach(a => {
     const swatch = el(`
       <button class="accent-swatch ${a.id === currentAccent ? 'active' : ''}" aria-label="${escapeHtml(a.name)}"
